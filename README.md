@@ -1,4 +1,3 @@
-# runner
 
 # Sistema Runner
 
