@@ -63,6 +63,7 @@ Os requisitos funcionais são expressos na forma de histórias de usuário (user
 - **Invocação direta (CLI)**: o CLI invoca o Assinador diretamente via linha de comandos. Cada execução realiza o ciclo completo de inicialização da JVM e carga da aplicação (*cold start*), sendo adequado para execuções esporádicas ou scripts de automação.
 - **Invocação via HTTP (servidor)**: o Assinador é iniciado uma única vez e permanece em execução, aguardando requisições HTTP. O CLI envia requisições ao Assinador neste modo, eliminando o overhead de inicialização nas chamadas subsequentes (*warm start*), oferecendo menor latência e maior throughput para cenários com múltiplas requisições.
 
+**Dúvida:** O usuário é quem escolher se vai usar a invocação direta ou via HTTP? O servidor deve ser iniciado automaticamente ou o usuário deve enviar um comando para iniciá-lo?
 
 ### US-02: Simular Assinatura Digital com Validação de Parâmetros
 
