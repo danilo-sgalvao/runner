@@ -77,6 +77,7 @@ Os requisitos funcionais são expressos na forma de histórias de usuário (user
 - [ ] O Assinador deve suportar interação com dispositivo criptográfico (token/smart card) via interface PKCS#11
 - [ ] O Assinador deve retornar mensagens de erro claras quando parâmetros forem inválidos
 
+**Dúvida:** É citado várias vezes no documento que é uma simulação da assinatura, mas aqui foi dito que deve haver uma interação com dispositivo criptográfico. Essa interação deve existir? Ela deve ser funcional?
 
 ### US-03: Gerenciar Ciclo de Vida do Simulador do HubSaúde
 
