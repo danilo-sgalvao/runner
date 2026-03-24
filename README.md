@@ -1,5 +1,7 @@
 
 # Sistema Runner
+Luiz Augusto Godinho 
+Danilo Sucupira 
 
 Especificação do trabalho prático da disciplina Implementação e Integração (2026-01)
 
