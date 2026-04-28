@@ -12,7 +12,7 @@ O projeto é composto por:
 
 - **`assinatura`** — CLI multiplataforma (Go) para criação e validação de assinaturas digitais
 - **`assinador.jar`** — Aplicação Java que realiza (de forma simulada) as operações de assinatura
-- **`simulador`** — CLI multiplataforma (Go) para gerenciamento do Simulador do HubSaúde
+- **`simulador`** — CLI multiplataforma (Go) para gerenciamento do Simulador do HubSaúde *(previsto para próximas sprints)*
 
 ---
 
@@ -39,13 +39,35 @@ assinatura version
 ### Criar uma assinatura digital
 
 ```bash
-assinatura sign --file documento.xml --cert certificado.pem
+assinatura sign --content "conteudo a ser assinado"
+```
+
+Com algoritmo específico:
+
+```bash
+assinatura sign --content "conteudo" --algorithm SHA512withRSA
+```
+
+Exemplo de saída:
+
+```
+status=sucesso
+assinatura=ASSINATURA-SIMULADA-SHA256withRSA-6924E13
+algoritmo=SHA256withRSA
 ```
 
 ### Validar uma assinatura digital
 
 ```bash
-assinatura validate --file documento.xml --signature assinatura.xml
+assinatura validate --content "conteudo a ser assinado" --signature "ASSINATURA-SIMULADA-SHA256withRSA-6924E13"
+```
+
+Exemplo de saída:
+
+```
+status=sucesso
+valida=true
+mensagem=Assinatura válida.
 ```
 
 ### Ajuda
@@ -58,6 +80,50 @@ assinatura validate --help
 
 ---
 
+## Como compilar o projeto
+
+### Pré-requisitos
+
+- [Go 1.24+](https://go.dev/dl/)
+- [Java JDK 21+](https://adoptium.net/)
+- [Maven 3.9+](https://maven.apache.org/download.cgi)
+
+### 1. Clonar o repositório
+
+```bash
+git clone https://github.com/danilo-sgalvao/runner.git
+cd runner
+```
+
+### 2. Compilar o assinador.jar
+
+```bash
+cd assinador
+mvn package
+cd ..
+```
+
+### 3. Executar o CLI em modo de desenvolvimento
+
+```bash
+go run . sign --content "teste"
+```
+
+### 4. Gerar binário nativo
+
+```bash
+# Windows
+go build -o assinatura.exe .
+
+# Linux
+GOOS=linux GOARCH=amd64 go build -o assinatura-linux .
+
+# macOS
+GOOS=darwin GOARCH=amd64 go build -o assinatura-macos .
+```
+
+---
+
 ## Verificando a autenticidade dos artefatos
 
 Todos os artefatos são assinados com [Cosign](https://docs.sigstore.dev/cosign/overview/) via Sigstore. Para verificar a autenticidade de um binário baixado:
@@ -66,16 +132,16 @@ Todos os artefatos são assinados com [Cosign](https://docs.sigstore.dev/cosign/
 
 ```bash
 cosign verify-blob \
-  --bundle assinatura-v0.1.0-linux-amd64.bundle \
-  assinatura-v0.1.0-linux-amd64
+  --bundle assinatura-v0.2.0-linux-amd64.bundle \
+  assinatura-v0.2.0-linux-amd64
 ```
 
 ### Windows
 
 ```powershell
 cosign verify-blob `
-  --bundle assinatura-v0.1.0-windows-amd64.exe.bundle `
-  assinatura-v0.1.0-windows-amd64.exe
+  --bundle assinatura-v0.2.0-windows-amd64.exe.bundle `
+  assinatura-v0.2.0-windows-amd64.exe
 ```
 
 Se a verificação for bem-sucedida, o Cosign exibirá:
@@ -86,7 +152,7 @@ Verified OK
 
 ### Verificando checksums SHA256
 
-Cada release inclui um arquivo `checksums.txt` com os hashes SHA256 de todos os binários. Para verificar:
+Cada release inclui um arquivo `checksums.txt` com os hashes SHA256 de todos os binários:
 
 ```bash
 sha256sum --check checksums.txt
@@ -94,36 +160,9 @@ sha256sum --check checksums.txt
 
 ---
 
-## Instalação do Cosign
+## Instalar o Cosign
 
 Para instalar o Cosign, acesse: https://docs.sigstore.dev/cosign/system_config/installation/
-
----
-
-## Como compilar o projeto
-
-### Pré-requisitos
-
-- [Go 1.24+](https://go.dev/dl/)
-
-### Compilar para sua plataforma atual
-
-```bash
-go build -o assinatura .
-```
-
-### Compilar para todas as plataformas
-
-```bash
-# Windows
-GOOS=windows GOARCH=amd64 go build -o assinatura-windows-amd64.exe .
-
-# Linux
-GOOS=linux GOARCH=amd64 go build -o assinatura-linux-amd64 .
-
-# macOS
-GOOS=darwin GOARCH=amd64 go build -o assinatura-darwin-amd64 .
-```
 
 ---
 
@@ -151,15 +190,31 @@ git push origin v1.0.0
 runner/
 ├── .github/
 │   └── workflows/
-│       ├── build.yml       # Pipeline de build contínuo
-│       └── release.yml     # Pipeline de release com Cosign
+│       ├── build.yml               # Pipeline de build contínuo
+│       └── release.yml             # Pipeline de release com Cosign
+├── assinador/
+│   ├── pom.xml                     # Configuração do Maven
+│   └── src/main/java/com/hubsaude/assinador/
+│       ├── Main.java               # Ponto de entrada do assinador
+│       └── AssinadorService.java   # Lógica de sign e validate
 ├── cmd/
-│   ├── root.go             # Comando raiz do CLI
-│   └── version.go          # Subcomando version
-├── main.go                 # Ponto de entrada
+│   ├── root.go                     # Comando raiz do CLI
+│   ├── version.go                  # Subcomando version
+│   ├── sign.go                     # Subcomando sign
+│   └── validate.go                 # Subcomando validate
+├── main.go                         # Ponto de entrada do CLI
 ├── go.mod
 └── README.md
 ```
+
+---
+
+## Releases
+
+| Versão | O que tem |
+|---|---|
+| [v0.1.0](https://github.com/danilo-sgalvao/runner/releases/tag/v0.1.0) | CLI base com comando `version`, pipelines CI/CD, binários para 3 plataformas |
+| [v0.2.0](https://github.com/danilo-sgalvao/runner/releases/tag/v0.2.0) | Comandos `sign` e `validate`, integração com `assinador.jar` |
 
 ---
 
