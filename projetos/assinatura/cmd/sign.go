@@ -52,7 +52,7 @@ func encontrarJar() string {
 	}
 
 	// Procura na pasta local (desenvolvimento)
-	local := filepath.Join("assinador", "target", "assinador.jar")
+	local := filepath.Join("..", "assinador-java", "target", "assinador.jar")
 	if _, err := os.Stat(local); err == nil {
 		return local
 	}

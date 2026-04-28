@@ -98,20 +98,22 @@ cd runner
 ### 2. Compilar o assinador.jar
 
 ```bash
-cd assinador
+cd projetos/assinador-java
 mvn package
-cd ..
+cd ../..
 ```
 
 ### 3. Executar o CLI em modo de desenvolvimento
 
 ```bash
+cd projetos/assinatura
 go run . sign --content "teste"
 ```
 
 ### 4. Gerar binário nativo
 
 ```bash
+# Ainda na pasta projetos/assinatura
 # Windows
 go build -o assinatura.exe .
 
@@ -120,6 +122,7 @@ GOOS=linux GOARCH=amd64 go build -o assinatura-linux .
 
 # macOS
 GOOS=darwin GOARCH=amd64 go build -o assinatura-macos .
+cd ../..
 ```
 
 ---

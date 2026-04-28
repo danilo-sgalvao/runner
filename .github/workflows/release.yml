@@ -22,9 +22,10 @@ jobs:
 
       - name: Compilar binários
         run: |
-          GOOS=windows GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-windows-amd64.exe .
-          GOOS=linux   GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-linux-amd64 .
-          GOOS=darwin  GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-darwin-amd64 .
+          cd projetos/assinatura
+          GOOS=windows GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-darwin-amd64 .
 
       - name: Gerar checksums SHA256
         run: |
