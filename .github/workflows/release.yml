@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Compilar binários
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -o assinatura-${{ github.ref_name }}-darwin-amd64 .
+
+      - name: Gerar checksums SHA256
+        run: |
+          sha256sum assinatura-${{ github.ref_name }}-windows-amd64.exe \
+                    assinatura-${{ github.ref_name }}-linux-amd64 \
+                    assinatura-${{ github.ref_name }}-darwin-amd64 > checksums.txt
+
+      - name: Instalar Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Assinar artefatos com Cosign
+        run: |
+          cosign sign-blob --yes assinatura-${{ github.ref_name }}-windows-amd64.exe \
+            --bundle assinatura-${{ github.ref_name }}-windows-amd64.exe.bundle
+          cosign sign-blob --yes assinatura-${{ github.ref_name }}-linux-amd64 \
+            --bundle assinatura-${{ github.ref_name }}-linux-amd64.bundle
+          cosign sign-blob --yes assinatura-${{ github.ref_name }}-darwin-amd64 \
+            --bundle assinatura-${{ github.ref_name }}-darwin-amd64.bundle
+
+      - name: Publicar no GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            assinatura-${{ github.ref_name }}-windows-amd64.exe
+            assinatura-${{ github.ref_name }}-linux-amd64
+            assinatura-${{ github.ref_name }}-darwin-amd64
+            assinatura-${{ github.ref_name }}-windows-amd64.exe.bundle
+            assinatura-${{ github.ref_name }}-linux-amd64.bundle
+            assinatura-${{ github.ref_name }}-darwin-amd64.bundle
+            checksums.txt
