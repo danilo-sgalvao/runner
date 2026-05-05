@@ -1,0 +1,77 @@
+# =========================
+# Sistema Operacional
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =========================
+# IDEs e Editores
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+*.iml
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+*.gz
+
+# =========================
+# Segredos e Configurações Locais
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.cert
+secrets.yml
+
+# =========================
+# Java / Maven (Projeto assinador-java)
+# =========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+.mvn/wrapper/maven-wrapper.jar
+
+# =========================
+# Go (Projeto assinatura)
+# =========================
+# Artefatos de compilação, testes e perfis
+*.test
+*.prof
+*.out
+vendor/
+
+# Ignorar os executáveis binários gerados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Binários específicos do projeto "assinatura" gerados no cross-compiling
+/projetos/assinatura/assinatura-linux
+/projetos/assinatura/assinatura-macos
+/projetos/assinatura/assinatura-windows.exe
+/projetos/assinatura/assinatura
