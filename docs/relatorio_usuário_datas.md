@@ -1,4 +1,4 @@
-# 05/05/25
+# 05/05/25 -- LUIZ AUGUSTO
 
 Hoje foi um dia de entendimento importante sobre o funcionamento das Sprints 1 e 2 do projeto.
 
