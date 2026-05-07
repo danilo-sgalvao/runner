@@ -2,18 +2,17 @@
 
 Este plano descreve como modificaremos o CLI em Go (`assinatura`) para baixar e instalar o Java (JRE) localmente caso o usuário não tenha o Java instalado em sua máquina.
 
-## User Review Required
+## Consequências
 
 > [!WARNING]
 > **Tamanho do Download:** Baixar o JRE implicará em um download de aproximadamente 40MB a 60MB na primeira execução em uma máquina sem Java.
 > **Complexidade do Go:** A extração de arquivos `.zip` (Windows) e `.tar.gz` (Linux/macOS) exige código adicional no Go. 
-> Por favor, aprove este plano para prosseguirmos com a implementação.
 
-## Open Questions
+## Questões abertas
 
 > [!IMPORTANT]
-> 1. **Diretório de Instalação:** O plano atual sugere instalar o Java no diretório do usuário (ex: `~/.runner/jre`). Você prefere que ele seja instalado nesta pasta global do usuário ou na mesma pasta onde o executável `assinatura.exe` está localizado?
-> 2. **Versão do Java:** O projeto requer Java 21+. Usaremos a API do Eclipse Temurin (Adoptium) para baixar o JRE 21 LTS mais recente. Você está de acordo?
+> 1. **Diretório de Instalação:** O plano atual sugere instalar o Java no diretório do usuário (ex: `~/.runner/jre`). Prefere que ele seja instalado nesta pasta global do usuário ou na mesma pasta onde o executável `assinatura.exe` está localizado?
+> 2. **Versão do Java:** O projeto requer Java 21+. Usaremos a API do Eclipse Temurin (Adoptium) para baixar o JRE 21 LTS mais recente?
 > 3. **Feedback Visual:** Deseja que um progresso de download (como uma barra de progresso) seja exibido no terminal enquanto o JRE é baixado?
 
 ## Proposed Changes
@@ -43,7 +42,7 @@ exec.Command(javaExecutable, "-jar", jarPath, ...)
 #### [MODIFY] `projetos/assinatura/cmd/validate.go`
 Fazer a mesma alteração descrita acima para garantir que o comando `validate` também utilize o Java local se necessário.
 
-## Verification Plan
+## Plano de verificação
 
 ### Automated Tests
 1. **Simular ausência do Java:** Alteraremos temporariamente a variável `PATH` na execução para "esconder" o Java do sistema.

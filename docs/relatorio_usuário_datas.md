@@ -11,3 +11,7 @@ Já na Sprint 2, o entendimento avançou para a parte funcional do sistema, espe
 Além disso, foi possível perceber a integração do projeto com automações no GitHub Actions, onde o sistema é compilado para diferentes sistemas operacionais (Windows, Linux e macOS) e posteriormente publicado em releases com versionamento, checksums e assinaturas digitais.
 
 De forma geral, o entendimento dessas duas sprints ajudou a visualizar melhor o fluxo completo do sistema: desde a execução do comando no terminal até a geração e distribuição dos binários. Isso tornou mais claro como cada parte do projeto contribui para o funcionamento final da aplicação e como a arquitetura foi pensada para suportar automação, distribuição e segurança.
+
+# 05/05/25 -- Danilo Galvão
+
+Consolidação do plano para implementação da capacidade de verificar e, se necessário, baixar e instalar localmente o Java na máquina do usuário. Validação com o professor: uma abordagem melhor seria tornar a escolha da versão flexível e externa ao sistema. Plano disponível em: [plano-download-java.md](plano-download-java.md).
