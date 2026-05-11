@@ -1,55 +1,106 @@
-# Plano de Implementação: Instalação Automática do Java (JRE)
+# Plano de Implementação: Provisionamento Automático do JRE
 
-Este plano descreve como modificaremos o CLI em Go (`assinatura`) para baixar e instalar o Java (JRE) localmente caso o usuário não tenha o Java instalado em sua máquina.
+Este plano descreve como os CLIs em Go (`assinatura` e `simulador`) vão detectar, baixar e configurar o JRE automaticamente, sem que o usuário precise instalar o Java manualmente — atendendo **US-03** e **US-04**.
+
+## Visão geral da estratégia
+
+Em vez de embutir a URL de download do JRE diretamente no código, os CLIs consultam um arquivo `release.json` hospedado neste repositório (branch `main`). Esse arquivo centraliza as URLs de download do JRE por plataforma, permitindo atualizar a versão do Java sem recompilar os binários.
+
+```
+CLI inicia
+  └─ Java em ~/.hubsaude/jre (versão ok)?     ──► usa esse Java
+       └─ não → Java no PATH (versão ok)?     ──► usa esse Java
+            └─ não → busca release.json
+                      ├─ sucesso → baixa JRE (com barra de progresso)
+                      └─ falha (offline) → Java no PATH (qualquer versão)? ──► usa com aviso
+                                                └─ não → aborta com mensagem clara
+```
 
 ## Consequências
 
 > [!WARNING]
-> **Tamanho do Download:** Baixar o JRE implicará em um download de aproximadamente 40MB a 60MB na primeira execução em uma máquina sem Java.
-> **Complexidade do Go:** A extração de arquivos `.zip` (Windows) e `.tar.gz` (Linux/macOS) exige código adicional no Go. 
+> **Tamanho do Download:** O JRE pesa aproximadamente 40–60 MB. O download ocorre apenas na primeira execução em uma máquina sem Java, ou quando a versão local estiver desatualizada.
+> **Complexidade adicional:** O Go precisa descompactar `.zip` (Windows) e `.tar.gz` (Linux/macOS) e realizar uma requisição HTTP para buscar o `release.json` antes de qualquer outra coisa.
 
-## Questões abertas
+## Arquivo `release.json`
 
-> [!IMPORTANT]
-> 1. **Diretório de Instalação:** O plano atual sugere instalar o Java no diretório do usuário (ex: `~/.runner/jre`). Prefere que ele seja instalado nesta pasta global do usuário ou na mesma pasta onde o executável `assinatura.exe` está localizado?
-> 2. **Versão do Java:** O projeto requer Java 21+. Usaremos a API do Eclipse Temurin (Adoptium) para baixar o JRE 21 LTS mais recente?
-> 3. **Feedback Visual:** Deseja que um progresso de download (como uma barra de progresso) seja exibido no terminal enquanto o JRE é baixado?
+Criar na raiz do repositório (branch `main`):
+
+```json
+{
+  "jre": {
+    "version": "21",
+    "windows_x64": "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse",
+    "linux_x64":   "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse",
+    "mac_x64":     "https://api.adoptium.net/v3/binary/latest/21/ga/mac/x64/jre/hotspot/normal/eclipse"
+  }
+}
+```
+
+Para trocar a versão do Java no futuro, basta alterar `"version"` e as URLs neste arquivo — sem recompilar nenhum binário.
 
 ## Proposed Changes
 
-### `projetos/assinatura/cmd`
+### [NEW] `projetos/assinatura/internal/jre/manager.go`
 
-Adicionaremos um novo pacote ou arquivo responsável pelo gerenciamento do Java e atualizaremos os comandos existentes para usá-lo.
+Pacote compartilhável entre os CLIs. Contém toda a lógica de provisionamento do JRE:
 
-#### [NEW] `projetos/assinatura/cmd/java_manager.go`
-Criaremos um arquivo contendo a lógica para:
-1. **Detectar o Java:** Tentar rodar `java -version` usando o executável do sistema (via variável `PATH`).
-2. **Definir o Diretório Local:** Determinar o caminho local de instalação (ex: `~/.runner/jre`).
-3. **Fazer o Download:** Caso o Java não seja encontrado nem no sistema nem na pasta local, fazer uma requisição HTTP para a API do Eclipse Temurin:
-   `https://api.adoptium.net/v3/binary/latest/21/ga/{os}/{arch}/jre/hotspot/normal/eclipse?project=jdk`
-4. **Extrair:** Descompactar o arquivo `.zip` (Windows) ou `.tar.gz` (Linux/macOS) no diretório local.
-5. **Retornar o Caminho:** Retornar o caminho absoluto do executável `java` (seja o do sistema ou o baixado localmente).
+1. **`JavaPath() (string, error)`** — ponto de entrada principal; retorna o caminho absoluto do executável `java` pronto para uso.
+2. **Detectar local (`~/.hubsaude/jre`):** Se já existe um executável `java` instalado localmente, retorna esse caminho sem fazer rede.
+3. **Detectar sistema (PATH):** Se `java` está disponível no PATH, retorna o caminho do sistema.
+4. **Buscar `release.json`:** Faz GET em `https://raw.githubusercontent.com/danilo-sgalvao/runner/main/release.json`, desserializa o JSON. Se a requisição falhar (sem rede), verifica se há algum `java` no PATH — qualquer versão — e o usa com um aviso ao usuário; se não houver nenhum, aborta com mensagem clara.
+5. **Selecionar URL por plataforma:** Usa `runtime.GOOS` e `runtime.GOARCH` para escolher `windows_x64`, `linux_x64` ou `mac_x64`.
+6. **Baixar JRE:** Faz download do arquivo para um temporário, exibindo uma barra de progresso no terminal.
+7. **Extrair:** Descompacta `.zip` (Windows) ou `.tar.gz` (Linux/macOS) em `~/.hubsaude/jre/`.
+8. **Retornar caminho:** Retorna o caminho absoluto do `java` recém-instalado.
 
-#### [MODIFY] `projetos/assinatura/cmd/sign.go`
-Alterar a chamada de execução do Java.
-**De:** `exec.Command("java", "-jar", jarPath, ...)`
-**Para:** 
-```go
-javaExecutable := obterCaminhoJava() // Chama a função do java_manager.go
-exec.Command(javaExecutable, "-jar", jarPath, ...)
+```
+~/.hubsaude/
+  jre/
+    bin/
+      java          (Linux/macOS)
+      java.exe      (Windows)
+    ...
 ```
 
-#### [MODIFY] `projetos/assinatura/cmd/validate.go`
-Fazer a mesma alteração descrita acima para garantir que o comando `validate` também utilize o Java local se necessário.
+### [MODIFY] `projetos/assinatura/cmd/sign.go`
+
+**De:** `exec.Command("java", "-jar", jarPath, ...)`  
+**Para:**
+```go
+javaPath, err := jre.JavaPath()
+// tratar erro
+exec.Command(javaPath, "-jar", jarPath, ...)
+```
+
+### [MODIFY] `projetos/assinatura/cmd/validate.go`
+
+Mesma alteração de `sign.go`.
+
+### [MODIFY] `projetos/simulador/cmd/*.go` *(quando o CLI simulador for criado)*
+
+O CLI `simulador` (US-03) também usará `jre.JavaPath()` antes de invocar `simulador.jar`, sem duplicar a lógica de provisionamento.
+
+## Diferença em relação ao plano anterior
+
+| Aspecto | Plano anterior | Plano atual |
+|---|---|---|
+| Versão do Java | Hardcoded (`21`) na URL dentro do binário | Lida do `release.json` no repositório |
+| URL de download | Hardcoded no código Go | Centralizada no `release.json` |
+| Diretório de instalação | `~/.runner/jre` | `~/.hubsaude/jre` (conforme spec) |
+| Escopo | Apenas `assinatura` | `assinatura` + `simulador` (via pacote compartilhado) |
+| Atualização de versão | Recompila os binários | Atualiza só o `release.json` |
 
 ## Plano de verificação
 
-### Automated Tests
-1. **Simular ausência do Java:** Alteraremos temporariamente a variável `PATH` na execução para "esconder" o Java do sistema.
-2. **Testar Download:** Rodaremos o CLI (`go run . sign --content "teste"`) e verificaremos se o download do JRE acontece.
-3. **Testar Execução:** Verificaremos se, após o download, o comando de assinatura/validação é concluído com sucesso usando o Java recém-baixado.
+### Testes automatizados
+1. **Sem Java no sistema:** Alterar `PATH` na execução para esconder o Java; verificar que o `release.json` é buscado e o JRE é baixado para `~/.hubsaude/jre`.
+2. **JRE já instalado localmente:** Verificar que o CLI usa o JRE local sem fazer requisição de rede.
+3. **Java no PATH:** Verificar que o CLI usa o Java do sistema sem baixar nada.
+4. **`release.json` indisponível + java no PATH:** Verificar que o CLI usa o java do PATH com aviso, sem abortar.
+5. **`release.json` indisponível + sem java no PATH:** Verificar mensagem de erro clara ao usuário.
 
-### Manual Verification
-- Compilar o binário Windows `.exe`.
-- Executar em uma máquina virtual ou ambiente Windows sem o Java previamente instalado.
-- Verificar a criação da pasta e a execução correta da assinatura.
+### Verificação manual
+- Compilar o binário Windows.
+- Executar em ambiente sem Java instalado (VM limpa ou container).
+- Confirmar criação de `~/.hubsaude/jre/` e execução correta da assinatura.
