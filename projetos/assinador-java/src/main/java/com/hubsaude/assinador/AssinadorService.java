@@ -2,71 +2,62 @@ package com.hubsaude.assinador;
 
 public class AssinadorService {
 
-    public static void sign(String[] args) {
-        String conteudo = null;
-        String algoritmo = "SHA256withRSA";
+    private static final String[] ALGORITMOS_SUPORTADOS = {"SHA256withRSA", "SHA512withRSA"};
+    private static final String PREFIXO_ASSINATURA = "ASSINATURA-SIMULADA-";
 
-        for (int i = 1; i < args.length; i++) {
-            switch (args[i]) {
-                case "--content" -> {
-                    if (i + 1 < args.length) conteudo = args[++i];
-                }
-                case "--algorithm" -> {
-                    if (i + 1 < args.length) algoritmo = args[++i];
-                }
+    /**
+     * Simula a criação de uma assinatura digital.
+     *
+     * @param conteudo  texto a ser assinado (obrigatório, não vazio)
+     * @param algoritmo algoritmo de assinatura (SHA256withRSA ou SHA512withRSA)
+     * @return string representando a assinatura simulada
+     * @throws IllegalArgumentException se algum parâmetro for inválido
+     */
+    public static String sign(String conteudo, String algoritmo) {
+        if (conteudo == null || conteudo.isBlank()) {
+            throw new IllegalArgumentException("parâmetro --content é obrigatório e não pode ser vazio.");
+        }
+
+        if (algoritmo == null || algoritmo.isBlank()) {
+            throw new IllegalArgumentException("parâmetro --algorithm é obrigatório.");
+        }
+
+        boolean algoritmoValido = false;
+        for (String alg : ALGORITMOS_SUPORTADOS) {
+            if (alg.equals(algoritmo)) {
+                algoritmoValido = true;
+                break;
             }
         }
 
-        if (conteudo == null || conteudo.isBlank()) {
-            System.err.println("Erro: parâmetro --content é obrigatório.");
-            System.exit(1);
+        if (!algoritmoValido) {
+            throw new IllegalArgumentException(
+                "algoritmo inválido: '" + algoritmo + "'. " +
+                "Algoritmos suportados: SHA256withRSA, SHA512withRSA"
+            );
         }
 
-        if (!algoritmo.equals("SHA256withRSA") && !algoritmo.equals("SHA512withRSA")) {
-            System.err.println("Erro: algoritmo inválido: " + algoritmo);
-            System.err.println("Algoritmos suportados: SHA256withRSA, SHA512withRSA");
-            System.exit(1);
-        }
-
-        // Simulação de assinatura
-        String assinaturaSimulada = "ASSINATURA-SIMULADA-" + algoritmo + "-" +
-                Integer.toHexString(conteudo.hashCode()).toUpperCase();
-
-        System.out.println("status=sucesso");
-        System.out.println("assinatura=" + assinaturaSimulada);
-        System.out.println("algoritmo=" + algoritmo);
+        String hash = Integer.toHexString(conteudo.hashCode()).toUpperCase();
+        return PREFIXO_ASSINATURA + algoritmo + "-" + hash;
     }
 
-    public static void validate(String[] args) {
-        String conteudo = null;
-        String assinatura = null;
-
-        for (int i = 1; i < args.length; i++) {
-            switch (args[i]) {
-                case "--content" -> {
-                    if (i + 1 < args.length) conteudo = args[++i];
-                }
-                case "--signature" -> {
-                    if (i + 1 < args.length) assinatura = args[++i];
-                }
-            }
-        }
-
+    /**
+     * Simula a validação de uma assinatura digital.
+     *
+     * @param conteudo   texto original (obrigatório, não vazio)
+     * @param assinatura assinatura a ser validada (obrigatório, não vazia)
+     * @return true se a assinatura é considerada válida, false caso contrário
+     * @throws IllegalArgumentException se algum parâmetro for inválido
+     */
+    public static boolean validate(String conteudo, String assinatura) {
         if (conteudo == null || conteudo.isBlank()) {
-            System.err.println("Erro: parâmetro --content é obrigatório.");
-            System.exit(1);
+            throw new IllegalArgumentException("parâmetro --content é obrigatório e não pode ser vazio.");
         }
 
         if (assinatura == null || assinatura.isBlank()) {
-            System.err.println("Erro: parâmetro --signature é obrigatório.");
-            System.exit(1);
+            throw new IllegalArgumentException("parâmetro --signature é obrigatório e não pode ser vazio.");
         }
 
-        // Simulação de validação
-        boolean valida = assinatura.startsWith("ASSINATURA-SIMULADA-");
-
-        System.out.println("status=sucesso");
-        System.out.println("valida=" + valida);
-        System.out.println("mensagem=" + (valida ? "Assinatura válida." : "Assinatura inválida."));
+        return assinatura.startsWith(PREFIXO_ASSINATURA);
     }
 }
