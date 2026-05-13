@@ -30,6 +30,8 @@ Baixe o binário mais recente para sua plataforma na página de [Releases](https
 
 ## Uso
 
+> **Java não precisa estar instalado.** Na primeira execução, o `assinatura` detecta automaticamente o Java 21 do sistema; se não houver, baixa um JRE compatível e o instala em `~/.hubsaude/jre`. Tudo sem intervenção do usuário.
+
 ### Exibir a versão
 
 ```bash
@@ -110,7 +112,17 @@ cd projetos/assinatura
 go run . sign --content "teste"
 ```
 
-### 4. Gerar binário nativo
+### 4. Executar os testes
+
+```bash
+# Testes Go (na pasta projetos/assinatura)
+go test ./...
+
+# Testes Java (na pasta projetos/assinador-java)
+mvn test
+```
+
+### 5. Gerar binário nativo
 
 ```bash
 # Ainda na pasta projetos/assinatura
@@ -193,20 +205,32 @@ git push origin v1.0.0
 runner/
 ├── .github/
 │   └── workflows/
-│       ├── build.yml               # Pipeline de build contínuo
-│       └── release.yml             # Pipeline de release com Cosign
-├── assinador/
-│   ├── pom.xml                     # Configuração do Maven
-│   └── src/main/java/com/hubsaude/assinador/
-│       ├── Main.java               # Ponto de entrada do assinador
-│       └── AssinadorService.java   # Lógica de sign e validate
-├── cmd/
-│   ├── root.go                     # Comando raiz do CLI
-│   ├── version.go                  # Subcomando version
-│   ├── sign.go                     # Subcomando sign
-│   └── validate.go                 # Subcomando validate
-├── main.go                         # Ponto de entrada do CLI
-├── go.mod
+│       ├── build.yml                       # Pipeline de build contínuo
+│       └── release.yml                     # Pipeline de release com Cosign
+├── docs/                                   # Especificação, planos e relatórios
+├── projetos/
+│   ├── assinador-java/                     # Serviço Java (Maven)
+│   │   ├── pom.xml
+│   │   └── src/
+│   │       ├── main/java/com/hubsaude/assinador/
+│   │       │   ├── Main.java               # Ponto de entrada do assinador
+│   │       │   └── AssinadorService.java   # Lógica de sign e validate
+│   │       └── test/java/com/hubsaude/assinador/
+│   │           └── AssinadorServiceTest.java
+│   └── assinatura/                         # CLI Go (Cobra)
+│       ├── cmd/
+│       │   ├── root.go                     # Comando raiz
+│       │   ├── version.go                  # Subcomando version
+│       │   ├── sign.go                     # Subcomando sign
+│       │   ├── validate.go                 # Subcomando validate
+│       │   ├── jar.go                      # Localização do assinador.jar
+│       │   └── *_test.go                   # Testes unitários
+│       ├── internal/jre/
+│       │   ├── manager.go                  # Detecção e auto-download do JRE
+│       │   └── manager_test.go
+│       ├── main.go                         # Ponto de entrada do CLI
+│       └── go.mod
+├── release.json                            # Metadados/URLs do JRE para download
 └── README.md
 ```
 
