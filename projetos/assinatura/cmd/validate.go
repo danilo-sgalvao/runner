@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/danilo-sgalvao/runner/internal/jre"
 	"github.com/spf13/cobra"
 )
 
@@ -14,33 +15,35 @@ var validateSignature string
 var validateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Valida uma assinatura digital simulada",
-	Run: func(cmd *cobra.Command, args []string) {
-		if validateContent == "" {
-			fmt.Println("Erro: --content é obrigatório.")
-			os.Exit(1)
+	Long: `Invoca o assinador.jar para verificar se uma assinatura digital é válida.
+
+O Java é detectado automaticamente. Se não estiver instalado, será baixado
+e configurado em ~/.hubsaude/jre sem necessidade de interação do usuário.
+
+Exemplos:
+  assinatura validate --content "documento" --signature "ASSINATURA-SIMULADA-SHA256withRSA-..."`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		jarPath, err := encontrarJar()
+		if err != nil {
+			return err
 		}
 
-		if validateSignature == "" {
-			fmt.Println("Erro: --signature é obrigatório.")
-			os.Exit(1)
+		javaPath, err := jre.JavaPath()
+		if err != nil {
+			return fmt.Errorf("Java não disponível: %w", err)
 		}
 
-		jarPath := encontrarJar()
-
-		javaCmd := exec.Command("java", "-jar", jarPath,
+		javaCmd := exec.Command(javaPath, "-jar", jarPath,
 			"validate",
 			"--content", validateContent,
 			"--signature", validateSignature,
 		)
-
 		javaCmd.Stdout = os.Stdout
 		javaCmd.Stderr = os.Stderr
 
-		err := javaCmd.Run()
-		if err != nil {
-			fmt.Println("Erro ao executar assinador.jar:", err)
-			os.Exit(1)
-		}
+		return javaCmd.Run()
 	},
 }
 
@@ -48,4 +51,6 @@ func init() {
 	rootCmd.AddCommand(validateCmd)
 	validateCmd.Flags().StringVar(&validateContent, "content", "", "Conteúdo original (obrigatório)")
 	validateCmd.Flags().StringVar(&validateSignature, "signature", "", "Assinatura a ser validada (obrigatório)")
+	validateCmd.MarkFlagRequired("content")
+	validateCmd.MarkFlagRequired("signature")
 }

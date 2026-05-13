@@ -15,6 +15,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
+)
+
+var (
+	metaClient     = &http.Client{Timeout: 15 * time.Second}
+	downloadClient = &http.Client{Timeout: 10 * time.Minute}
 )
 
 const releaseURL = "https://raw.githubusercontent.com/danilo-sgalvao/runner/main/release.json"
@@ -29,6 +35,26 @@ type releaseFile struct {
 }
 
 var javaVersionRe = regexp.MustCompile(`version "(\d+)`)
+
+// releaseConfig é um alias de releaseFile para compatibilidade com os testes.
+type releaseConfig = releaseFile
+
+// LocalJREDir retorna o diretório onde o JRE gerenciado é armazenado.
+func LocalJREDir() string {
+	dir, _ := hubsaudeJREDir()
+	return dir
+}
+
+// jreURL retorna a URL de download do JRE para a plataforma atual.
+func jreURL(cfg *releaseConfig) string {
+	url, _ := platformURL(cfg)
+	return url
+}
+
+// detectLocal é um alias de localJREPath para compatibilidade com os testes.
+func detectLocal() (string, bool) {
+	return localJREPath()
+}
 
 // JavaPath returns the absolute path to a java executable, provisioning the JRE if needed.
 func JavaPath() (string, error) {
@@ -110,7 +136,7 @@ func systemJava(requireV21 bool) (string, bool) {
 }
 
 func fetchRelease() (*releaseFile, error) {
-	resp, err := http.Get(releaseURL)
+	resp, err := metaClient.Get(releaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +213,7 @@ func downloadAndInstall(url string) (string, error) {
 }
 
 func downloadWithProgress(url string, dst *os.File) error {
-	resp, err := http.Get(url)
+	resp, err := downloadClient.Get(url)
 	if err != nil {
 		return err
 	}
@@ -238,12 +264,16 @@ func extractZip(zipPath, destDir string) error {
 		}
 	}
 
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
 	for _, f := range r.File {
 		name := strings.TrimPrefix(f.Name, prefix)
 		if name == "" {
 			continue
 		}
 		target := filepath.Join(destDir, filepath.FromSlash(name))
+		if !strings.HasPrefix(target+string(os.PathSeparator), cleanDest) {
+			return fmt.Errorf("entrada inválida no zip: %s", f.Name)
+		}
 
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(target, f.Mode()); err != nil {
@@ -291,6 +321,7 @@ func extractTarGz(tarPath, destDir string) error {
 
 	tr := tar.NewReader(gz)
 	prefix := ""
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
 
 	for {
 		hdr, err := tr.Next()
@@ -312,6 +343,9 @@ func extractTarGz(tarPath, destDir string) error {
 			continue
 		}
 		target := filepath.Join(destDir, filepath.FromSlash(name))
+		if !strings.HasPrefix(target+string(os.PathSeparator), cleanDest) {
+			return fmt.Errorf("entrada inválida no tar: %s", hdr.Name)
+		}
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
