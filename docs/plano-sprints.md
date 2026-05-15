@@ -145,7 +145,7 @@
 - [x] CLI localiza o `java` disponível (provisionado ou do sistema)
 - [x] CLI constrói e executa o comando `java -jar assinador.jar` com parâmetros corretamente mapeados
 - [x] Saída do assinador.jar é capturada e repassada ao usuário
-- [x] Erros de execução (ex.: JDK ausente, jar não encontrado) são tratados com mensagens claras
+- [x] Erros de execução (ex.: JRE ausente, jar não encontrado) são tratados com mensagens claras
 - [ ] Testes de integração validam o fluxo CLI → assinador.jar
 
 ### US-01.4 — Exibição legível de resultados
@@ -160,18 +160,18 @@
 - [x] Erros são apresentados com mensagem descritiva e orientação para correção
 - [x] Saída é adequada para uso em terminal (não requer pós-processamento)
 
-### US-04.1 — Detecção e provisionamento automático do JDK
+### US-04.1 — Detecção e provisionamento automático do JRE
 
 **Como** usuário do Sistema Runner,
-**quero** que o sistema detecte se o JDK compatível está presente e, caso não esteja, baixe e configure automaticamente,
+**quero** que o sistema detecte se o JRE compatível está presente e, caso não esteja, baixe e configure automaticamente,
 **para que** eu possa utilizar o Assinador sem instalar o Java manualmente.
 
 **Critérios de aceitação:**
-- [x] Sistema verifica se JDK 21 está disponível no `PATH` ou em diretório gerenciado (`~/.hubsaude/`)
-- [x] Se ausente, JDK é baixado automaticamente da distribuição adequada para a plataforma (Windows, Linux, macOS)
-- [x] JDK baixado é armazenado em `~/.hubsaude/jdk/` para reuso
-- [x] Download não é repetido se JDK já estiver provisionado
-- [x] Testes cobrem detecção de JDK presente e ausente nas três plataformas
+- [x] Sistema verifica se JRE 21 está disponível no `PATH` ou em diretório gerenciado (`~/.hubsaude/`)
+- [x] Se ausente, JRE é baixado automaticamente da distribuição adequada para a plataforma (Windows, Linux, macOS)
+- [x] JRE baixado é armazenado em `~/.hubsaude/jre/` para reuso
+- [x] Download não é repetido se JRE já estiver provisionado
+- [x] Testes cobrem detecção de JRE presente e ausente nas três plataformas
 
 ---
 
