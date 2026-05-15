@@ -44,32 +44,22 @@ assinatura version
 assinatura sign --content "conteudo a ser assinado"
 ```
 
-Com algoritmo específico:
-
-```bash
-assinatura sign --content "conteudo" --algorithm SHA512withRSA
-```
-
 Exemplo de saída:
 
-```
-status=sucesso
-assinatura=ASSINATURA-SIMULADA-SHA256withRSA-6924E13
-algoritmo=SHA256withRSA
+```json
+{"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura criada com sucesso"}
 ```
 
 ### Validar uma assinatura digital
 
 ```bash
-assinatura validate --content "conteudo a ser assinado" --signature "ASSINATURA-SIMULADA-SHA256withRSA-6924E13"
+assinatura validate --content "conteudo a ser assinado" --signature "MOCKED_SIGNATURE_BASE64_=="
 ```
 
 Exemplo de saída:
 
-```
-status=sucesso
-valida=true
-mensagem=Assinatura válida.
+```json
+{"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura é válida"}
 ```
 
 ### Ajuda
@@ -214,9 +204,11 @@ runner/
 │   │   └── src/
 │   │       ├── main/java/com/hubsaude/assinador/
 │   │       │   ├── Main.java               # Ponto de entrada do assinador
-│   │       │   └── AssinadorService.java   # Lógica de sign e validate
+│   │       │   ├── SignatureService.java    # Interface do serviço
+│   │       │   ├── FakeSignatureService.java # Implementação simulada
+│   │       │   └── domain/                 # DTOs: SignRequest, ValidateRequest, SignatureResponse
 │   │       └── test/java/com/hubsaude/assinador/
-│   │           └── AssinadorServiceTest.java
+│   │           └── FakeSignatureServiceTest.java
 │   └── assinatura/                         # CLI Go (Cobra)
 │       ├── cmd/
 │       │   ├── root.go                     # Comando raiz

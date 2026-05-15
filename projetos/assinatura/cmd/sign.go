@@ -10,7 +10,6 @@ import (
 )
 
 var signContent string
-var signAlgorithm string
 
 var signCmd = &cobra.Command{
 	Use:   "sign",
@@ -21,8 +20,7 @@ O Java é detectado automaticamente. Se não estiver instalado, será baixado
 e configurado em ~/.hubsaude/jre sem necessidade de interação do usuário.
 
 Exemplos:
-  assinatura sign --content "documento"
-  assinatura sign --content "documento" --algorithm SHA512withRSA`,
+  assinatura sign --content "documento"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -39,7 +37,6 @@ Exemplos:
 		javaCmd := exec.Command(javaPath, "-jar", jarPath,
 			"sign",
 			"--content", signContent,
-			"--algorithm", signAlgorithm,
 		)
 		javaCmd.Stdout = os.Stdout
 		javaCmd.Stderr = os.Stderr
@@ -51,7 +48,5 @@ Exemplos:
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&signContent, "content", "", "Conteúdo a ser assinado (obrigatório)")
-	signCmd.Flags().StringVar(&signAlgorithm, "algorithm", "SHA256withRSA",
-		"Algoritmo de assinatura: SHA256withRSA (padrão) ou SHA512withRSA")
 	signCmd.MarkFlagRequired("content")
 }

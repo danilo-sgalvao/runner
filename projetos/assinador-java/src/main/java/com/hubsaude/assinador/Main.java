@@ -1,6 +1,12 @@
 package com.hubsaude.assinador;
 
+import com.hubsaude.assinador.domain.SignRequest;
+import com.hubsaude.assinador.domain.ValidateRequest;
+import com.hubsaude.assinador.domain.SignatureResponse;
+
 public class Main {
+
+    private static final SignatureService service = new FakeSignatureService();
 
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -10,57 +16,64 @@ public class Main {
             System.exit(1);
         }
 
-        String comando = args[0];
-
-        try {
-            switch (comando) {
-                case "sign"     -> handleSign(args);
-                case "validate" -> handleValidate(args);
-                default -> {
-                    System.err.println("Erro: comando desconhecido: " + comando);
-                    System.err.println("Comandos disponíveis: sign, validate");
-                    System.exit(1);
-                }
+        switch (args[0]) {
+            case "sign"     -> handleSign(args);
+            case "validate" -> handleValidate(args);
+            default -> {
+                System.err.println("Erro: comando desconhecido: " + args[0]);
+                System.err.println("Comandos disponíveis: sign, validate");
+                System.exit(1);
             }
-        } catch (IllegalArgumentException e) {
-            System.err.println("Erro: " + e.getMessage());
-            System.exit(1);
         }
     }
 
     private static void handleSign(String[] args) {
-        String conteudo = null;
-        String algoritmo = "SHA256withRSA";
+        SignRequest request = new SignRequest();
 
         for (int i = 1; i < args.length; i++) {
-            switch (args[i]) {
-                case "--content"   -> { if (i + 1 < args.length) conteudo  = args[++i]; }
-                case "--algorithm" -> { if (i + 1 < args.length) algoritmo = args[++i]; }
+            if ("--content".equals(args[i]) && i + 1 < args.length) {
+                request.setContent(args[++i]);
             }
         }
 
-        String assinatura = AssinadorService.sign(conteudo, algoritmo);
-
-        System.out.println("status=sucesso");
-        System.out.println("assinatura=" + assinatura);
-        System.out.println("algoritmo=" + algoritmo);
+        SignatureResponse response = service.sign(request);
+        printResponse(response);
     }
 
     private static void handleValidate(String[] args) {
-        String conteudo   = null;
-        String assinatura = null;
+        ValidateRequest request = new ValidateRequest();
 
         for (int i = 1; i < args.length; i++) {
             switch (args[i]) {
-                case "--content"   -> { if (i + 1 < args.length) conteudo   = args[++i]; }
-                case "--signature" -> { if (i + 1 < args.length) assinatura = args[++i]; }
+                case "--content"   -> { if (i + 1 < args.length) request.setContent(args[++i]); }
+                case "--signature" -> { if (i + 1 < args.length) request.setSignature(args[++i]); }
             }
         }
 
-        boolean valida = AssinadorService.validate(conteudo, assinatura);
+        SignatureResponse response = service.validate(request);
+        printResponse(response);
+    }
 
-        System.out.println("status=sucesso");
-        System.out.println("valida=" + valida);
-        System.out.println("mensagem=" + (valida ? "Assinatura válida." : "Assinatura inválida."));
+    private static void printResponse(SignatureResponse response) {
+        String json = toJson(response);
+        if (response.isValid()) {
+            System.out.println(json);
+        } else {
+            System.err.println(json);
+            System.exit(1);
+        }
+    }
+
+    static String toJson(SignatureResponse r) {
+        String sig = r.getSignature() == null
+            ? "null"
+            : "\"" + escapeJson(r.getSignature()) + "\"";
+        return "{\"signature\":" + sig
+            + ",\"valid\":" + r.isValid()
+            + ",\"message\":\"" + escapeJson(r.getMessage()) + "\"}";
+    }
+
+    private static String escapeJson(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

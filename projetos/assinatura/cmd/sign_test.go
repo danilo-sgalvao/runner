@@ -33,20 +33,10 @@ func TestSignCmd_ContentEObrigatorio(t *testing.T) {
 	}
 }
 
-func TestSignCmd_ContemFlagAlgorithm(t *testing.T) {
+func TestSignCmd_NaoContemFlagAlgorithm(t *testing.T) {
 	flag := signCmd.Flags().Lookup("algorithm")
-	if flag == nil {
-		t.Fatal("flag --algorithm não encontrada no comando sign")
-	}
-}
-
-func TestSignCmd_AlgorithmTemValorPadrao(t *testing.T) {
-	flag := signCmd.Flags().Lookup("algorithm")
-	if flag == nil {
-		t.Fatal("flag --algorithm não encontrada")
-	}
-	if flag.DefValue != "SHA256withRSA" {
-		t.Errorf("valor padrão de --algorithm deveria ser 'SHA256withRSA', obteve: %s", flag.DefValue)
+	if flag != nil {
+		t.Fatal("flag --algorithm foi removida e não deveria existir no comando sign")
 	}
 }
 

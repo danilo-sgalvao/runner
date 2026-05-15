@@ -93,8 +93,8 @@
 
 **Critérios de aceitação:**
 - [x] Projeto Java base inicializado no diretório `projetos/assinador-java`
-- [ ] Interface `SignatureService` definida com métodos `sign` e `validate`
-- [ ] Implementação `FakeSignatureService` retorna assinatura pré-construída para parâmetros válidos
+- [x] Interface `SignatureService` definida com métodos `sign` e `validate`
+- [x] Implementação `FakeSignatureService` retorna assinatura pré-construída para parâmetros válidos
 - [x] Resposta simulada inclui os campos esperados conforme especificação
 - [x] Testes unitários cobrem o cenário de sucesso
 
@@ -146,7 +146,7 @@
 - [x] CLI constrói e executa o comando `java -jar assinador.jar` com parâmetros corretamente mapeados
 - [x] Saída do assinador.jar é capturada e repassada ao usuário
 - [x] Erros de execução (ex.: JRE ausente, jar não encontrado) são tratados com mensagens claras
-- [ ] Testes de integração validam o fluxo CLI → assinador.jar
+- [x] Testes de integração validam o fluxo CLI → assinador.jar
 
 ### US-01.4 — Exibição legível de resultados
 

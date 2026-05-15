@@ -6,19 +6,21 @@ Resumo do estado atual em relação ao [`plano-sprints.md`](./plano-sprints.md) 
 
 | US | Cumpridos | Pendentes |
 |----|-----------|-----------|
-| US-02.1 — Simulação de `sign` | 3/5 | Interface `SignatureService` e classe `FakeSignatureService` (nomes exatos) não existem — a lógica está concentrada em `AssinadorService.java` com métodos estáticos, sem extração de interface. |
+| US-02.1 — Simulação de `sign` | 5/5 | — |
 | US-02.2 — Validação de parâmetros de `sign` | 4/4 | — |
 | US-02.3 — Simulação/validação de `validate` | 4/4 | — |
 | US-01.2 — Parsing CLI | 5/5 | — |
-| US-01.3 — Invocação local do JAR | 4/5 | Faltam testes de integração end-to-end (CLI → JAR real); os testes atuais cobrem apenas registro/flags do Cobra. |
+| US-01.3 — Invocação local do JAR | 5/5 | — |
 | US-01.4 — Exibição legível | 4/4 | — |
 | US-04.1 — Provisionamento de JRE | 5/5 | — |
 
 ## 2. Pontos para fechar 100% da Sprint 2
 
-1. **Refatorar** `AssinadorService` para implementar a interface conforme `referencia/assinador-java` (US-02.1). Detalhamento na seção 3.
-2. **Adicionar** ao menos um teste de integração que invoque o `assinador.jar` real (US-01.3).
-3. **Atualizar** o critério de US-04.1 em `plano-sprints.md` substituindo "JDK" por "JRE" (ou inverter a implementação para baixar JDK, decisão registrada em [`plano-download-java.md`](./planos-implementacoes/plano-download-java.md): manter JRE).
+Todos resolvidos:
+
+1. ✅ **Refatoração** `SignatureService`/`FakeSignatureService` implementada (PR 1).
+2. ✅ **Testes de integração** end-to-end adicionados com build tag `integration` (PR 2).
+3. ✅ **Critério US-04.1** atualizado de JDK para JRE em `plano-sprints.md` (PR 3).
 
 ---
 
