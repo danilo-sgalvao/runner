@@ -52,3 +52,21 @@ A sprint foi focada em entregar o fluxo ponta-a-ponta de assinatura e validaçã
 - Java: 17/17 ✅
 - Go cmd: 17/17 ✅
 - Go jre: 8 pass / 2 skip (skips de plataforma: Linux e macOS pulados corretamente no Windows) ✅
+
+# 19/05/26 -- LUIZ AUGUSTO
+
+Implementação da identificação genérica do `assinador.jar` independente da máquina.
+
+Anteriormente, a função `encontrarJar()` localizava o arquivo `.jar` em apenas dois locais fixos: ao lado do executável (modo produção) ou em `../assinador-java/target/` (modo desenvolvimento local). Isso causava falha em qualquer máquina que não tivesse o projeto clonado localmente ou o binário distribuído com o jar ao lado.
+
+**O que foi feito:**
+
+- **Atualização do `jar.go`**: a função `encontrarJar()` foi expandida com uma nova ordem de busca:
+  1. Ao lado do executável (modo distribuído/produção)
+  2. `~/.hubsaude/assinador.jar` (cache local gerenciado automaticamente)
+  3. `../assinador-java/target/assinador.jar` (modo desenvolvimento)
+  4. Download automático via `release.json` do repositório, salvando em `~/.hubsaude/assinador.jar`
+
+- **Atualização do `release.json`**: adicionada a chave `"jar"` com a URL do artefato publicado no GitHub Releases (`releases/latest/download/assinador.jar`), permitindo atualizar o jar sem recompilar os binários Go.
+
+**Resultado:** qualquer máquina que execute o CLI pela primeira vez sem o jar presente irá baixá-lo automaticamente da internet e armazená-lo em cache local, sem necessidade de intervenção manual. O padrão segue a mesma arquitetura já usada pelo gerenciador do JRE (`internal/jre/manager.go`).
