@@ -70,3 +70,15 @@ Anteriormente, a função `encontrarJar()` localizava o arquivo `.jar` em apenas
 - **Atualização do `release.json`**: adicionada a chave `"jar"` com a URL do artefato publicado no GitHub Releases (`releases/latest/download/assinador.jar`), permitindo atualizar o jar sem recompilar os binários Go.
 
 **Resultado:** qualquer máquina que execute o CLI pela primeira vez sem o jar presente irá baixá-lo automaticamente da internet e armazená-lo em cache local, sem necessidade de intervenção manual. O padrão segue a mesma arquitetura já usada pelo gerenciador do JRE (`internal/jre/manager.go`).
+
+# 19/05/26 -- Danilo Galvão
+
+Refatoração do `assinador-java` com introdução da interface `SignatureService`.
+
+**O que foi feito:**
+
+- **Criação da interface `SignatureService`**: definição dos contratos `sign(SignRequest)` e `validate(ValidateRequest)`, desacoplando a lógica de negócio da implementação concreta.
+
+- **Implementação `FakeSignatureService`**: classe que implementa `SignatureService` com assinaturas simuladas (retorna `MOCKED_SIGNATURE_BASE64_==`), isolando o comportamento fake atrás da interface.
+
+- **Atualização do `Main.java`**: passou a depender da interface `SignatureService` em vez da implementação direta, tornando o sistema preparado para substituição futura por uma implementação real de criptografia sem alteração no ponto de entrada.
