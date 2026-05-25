@@ -21,7 +21,7 @@ O Java é detectado automaticamente. Se não estiver instalado, será baixado
 e configurado em ~/.hubsaude/jre sem necessidade de interação do usuário.
 
 Exemplos:
-  assinatura validate --content "documento" --signature "ASSINATURA-SIMULADA-SHA256withRSA-..."`,
+  assinatura validate --content "documento" --signature "MOCKED_SIGNATURE_BASE64_=="`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 

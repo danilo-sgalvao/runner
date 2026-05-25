@@ -16,8 +16,7 @@ de configurar ou instalar o Java manualmente.
 
 Exemplos:
   assinatura sign --content "meu documento"
-  assinatura sign --content "meu documento" --algorithm SHA512withRSA
-  assinatura validate --content "meu documento" --signature "ASSINATURA-SIMULADA-..."`,
+  assinatura validate --content "meu documento" --signature "MOCKED_SIGNATURE_BASE64_=="`,
 }
 
 func Execute() {
