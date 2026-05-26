@@ -1,4 +1,4 @@
-package com.hubsaude.assinador.domain;
+package com.hubsaude.assinador.domain.model;
 
 public class SignRequest {
 

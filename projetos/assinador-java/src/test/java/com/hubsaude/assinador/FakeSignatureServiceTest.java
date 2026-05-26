@@ -1,8 +1,10 @@
 package com.hubsaude.assinador;
 
-import com.hubsaude.assinador.domain.SignRequest;
-import com.hubsaude.assinador.domain.ValidateRequest;
-import com.hubsaude.assinador.domain.SignatureResponse;
+import com.hubsaude.assinador.domain.model.SignRequest;
+import com.hubsaude.assinador.domain.model.ValidateRequest;
+import com.hubsaude.assinador.domain.model.SignatureResult;
+import com.hubsaude.assinador.domain.service.FakeSignatureService;
+import com.hubsaude.assinador.domain.service.SignatureService;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,7 +20,7 @@ class FakeSignatureServiceTest {
         SignRequest request = new SignRequest();
         request.setContent("documento teste");
 
-        SignatureResponse response = service.sign(request);
+        SignatureResult response = service.sign(request);
 
         assertNotNull(response);
         assertTrue(response.isValid());
@@ -31,7 +33,7 @@ class FakeSignatureServiceTest {
         SignRequest request = new SignRequest();
         request.setContent(null);
 
-        SignatureResponse response = service.sign(request);
+        SignatureResult response = service.sign(request);
 
         assertNotNull(response);
         assertFalse(response.isValid());
@@ -44,7 +46,7 @@ class FakeSignatureServiceTest {
         SignRequest request = new SignRequest();
         request.setContent("");
 
-        SignatureResponse response = service.sign(request);
+        SignatureResult response = service.sign(request);
 
         assertFalse(response.isValid());
         assertNull(response.getSignature());
@@ -55,7 +57,7 @@ class FakeSignatureServiceTest {
         SignRequest request = new SignRequest();
         request.setContent("   ");
 
-        SignatureResponse response = service.sign(request);
+        SignatureResult response = service.sign(request);
 
         assertFalse(response.isValid());
         assertNull(response.getSignature());
@@ -69,7 +71,7 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertNotNull(response);
         assertTrue(response.isValid());
@@ -82,7 +84,7 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature("ASSINATURA-ERRADA");
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertFalse(response.isValid());
         assertEquals("Assinatura é inválida", response.getMessage());
@@ -94,7 +96,7 @@ class FakeSignatureServiceTest {
         request.setContent(null);
         request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertFalse(response.isValid());
         assertTrue(response.getMessage().contains("content"));
@@ -106,7 +108,7 @@ class FakeSignatureServiceTest {
         request.setContent("   ");
         request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertFalse(response.isValid());
     }
@@ -117,7 +119,7 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature(null);
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertFalse(response.isValid());
         assertTrue(response.getMessage().contains("signature"));
@@ -129,7 +131,7 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature("");
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
 
         assertFalse(response.isValid());
     }
@@ -140,13 +142,13 @@ class FakeSignatureServiceTest {
     void fluxoCompleto_signEntaoValidate_retornaValida() {
         SignRequest signReq = new SignRequest();
         signReq.setContent("documento importante");
-        SignatureResponse signed = service.sign(signReq);
+        SignatureResult signed = service.sign(signReq);
         assertTrue(signed.isValid());
 
         ValidateRequest validateReq = new ValidateRequest();
         validateReq.setContent("documento importante");
         validateReq.setSignature(signed.getSignature());
-        SignatureResponse validated = service.validate(validateReq);
+        SignatureResult validated = service.validate(validateReq);
 
         assertTrue(validated.isValid());
     }

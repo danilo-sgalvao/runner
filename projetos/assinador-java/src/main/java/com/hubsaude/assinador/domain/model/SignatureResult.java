@@ -1,14 +1,14 @@
-package com.hubsaude.assinador.domain;
+package com.hubsaude.assinador.domain.model;
 
-public class SignatureResponse {
+public class SignatureResult {
 
     private String signature;
     private boolean valid;
     private String message;
 
-    public SignatureResponse() {}
+    public SignatureResult() {}
 
-    public SignatureResponse(String signature, boolean valid, String message) {
+    public SignatureResult(String signature, boolean valid, String message) {
         this.signature = signature;
         this.valid = valid;
         this.message = message;

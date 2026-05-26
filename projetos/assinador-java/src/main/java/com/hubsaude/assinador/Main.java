@@ -1,8 +1,10 @@
 package com.hubsaude.assinador;
 
-import com.hubsaude.assinador.domain.SignRequest;
-import com.hubsaude.assinador.domain.ValidateRequest;
-import com.hubsaude.assinador.domain.SignatureResponse;
+import com.hubsaude.assinador.domain.model.SignRequest;
+import com.hubsaude.assinador.domain.model.ValidateRequest;
+import com.hubsaude.assinador.domain.model.SignatureResult;
+import com.hubsaude.assinador.domain.service.SignatureService;
+import com.hubsaude.assinador.domain.service.FakeSignatureService;
 import com.hubsaude.assinador.infrastructure.json.JsonMapper;
 
 public class Main {
@@ -37,7 +39,7 @@ public class Main {
             }
         }
 
-        SignatureResponse response = service.sign(request);
+        SignatureResult response = service.sign(request);
         printResponse(response);
     }
 
@@ -51,11 +53,11 @@ public class Main {
             }
         }
 
-        SignatureResponse response = service.validate(request);
+        SignatureResult response = service.validate(request);
         printResponse(response);
     }
 
-    private static void printResponse(SignatureResponse response) {
+    private static void printResponse(SignatureResult response) {
         String json = JsonMapper.toJson(response);
         if (response.isValid()) {
             System.out.println(json);
