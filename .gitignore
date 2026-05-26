@@ -53,6 +53,8 @@ target/
 *.nar
 hs_err_pid*
 .mvn/wrapper/maven-wrapper.jar
+# Gerado pelo maven-shade-plugin a cada mvn package
+dependency-reduced-pom.xml
 
 # =========================
 # Go (Projeto assinatura)
