@@ -82,3 +82,32 @@ Refatoração do `assinador-java` com introdução da interface `SignatureServic
 - **Implementação `FakeSignatureService`**: classe que implementa `SignatureService` com assinaturas simuladas (retorna `MOCKED_SIGNATURE_BASE64_==`), isolando o comportamento fake atrás da interface.
 
 - **Atualização do `Main.java`**: passou a depender da interface `SignatureService` em vez da implementação direta, tornando o sistema preparado para substituição futura por uma implementação real de criptografia sem alteração no ponto de entrada.
+
+# 26/05/26 -- LUIZ AUGUSTO
+
+Implementação da Fase 3 do plano de refatoração da arquitetura Java: modo servidor HTTP (US-02.4).
+
+A fase adiciona ao `assinador.jar` a capacidade de funcionar como servidor HTTP permanente, expondo os endpoints `/sign` e `/validate`. O mesmo núcleo de negócio — use cases, validação e serviço fake — é reutilizado pelos dois adaptadores de entrada (CLI e HTTP), sem duplicação.
+
+**O que foi feito:**
+
+- **Atualização do `pom.xml`**: substituição do `maven-shade-plugin` pelo `spring-boot-maven-plugin` com goal `repackage`. Adicionadas as dependências `spring-boot-starter-web` e `spring-boot-starter-test` via BOM do Spring Boot 3.3.5. O fat-jar final (`assinador.jar`, ~20 MB) continua sendo um executável self-contained com `Main-Class` apontando para o launcher do Spring Boot e `Start-Class` para `AssinadorApplication`.
+
+- **`WebApplication.java`**: classe anotada com `@SpringBootApplication`, usada como raiz do contexto Spring. Ativada apenas quando `AssinadorApplication` entra no branch `serve`; o modo CLI não sobe o Spring.
+
+- **`infrastructure/config/AppConfig.java`**: `@Configuration` que declara como beans Spring os mesmos objetos do núcleo instanciados manualmente no modo CLI (`FakeSignatureService`, `RequestValidator`, `SignUseCase`, `ValidateUseCase`).
+
+- **`presentation/http/SignatureController.java`**: `@RestController` com `POST /sign` e `POST /validate`. Recebe DTOs HTTP, converte para os modelos de domínio, delega aos use cases existentes e retorna `SignatureHttpResponse`.
+
+- **`presentation/http/GlobalExceptionHandler.java`**: `@RestControllerAdvice` que trata `ValidationException` com HTTP 400 e exceções genéricas com HTTP 500, sempre retornando a mesma estrutura de resposta (`signature`, `valid`, `message`).
+
+- **DTOs HTTP** (`presentation/http/dto/`): `SignHttpRequest`, `ValidateHttpRequest` e `SignatureHttpResponse` — tipos de transporte independentes do domínio.
+
+- **`infrastructure/ServerStartupHandler.java`**: `ApplicationListener<WebServerInitializedEvent>` que, ao servidor iniciar, escreve `{"pid":N,"port":N}` em `~/.hubsaude/assinador.pid` para uso futuro pelo CLI Go (US-01.7, US-01.8). Exibe no stderr a confirmação da porta e PID.
+
+- **Atualização do `AssinadorApplication.java`**: o branch `serve` agora parseia o argumento `--port N` (padrão 8080), configura a propriedade `server.port` via `SpringApplication.setDefaultProperties` e chama `SpringApplication.run(WebApplication.class, ...)`. Qualquer outro comando segue o fluxo CLI inalterado.
+
+- **`SignatureControllerTest.java`**: 7 testes de integração com `@SpringBootTest` + `MockMvc`, cobrindo sign com conteúdo válido (200), sign com conteúdo vazio (400), validate com assinatura correta (200 `valid=true`), validate com assinatura errada (200 `valid=false`), validate sem content (400) e validate sem signature (400).
+
+**Resultado dos testes:**
+- Java (total): 29/29 ✅ (22 anteriores + 7 novos de integração HTTP)
