@@ -199,16 +199,31 @@ runner/
 │       └── release.yml                     # Pipeline de release com Cosign
 ├── docs/                                   # Especificação, planos e relatórios
 ├── projetos/
-│   ├── assinador-java/                     # Serviço Java (Maven)
+│   ├── assinador-java/                     # Serviço Java (Maven, fat-jar)
 │   │   ├── pom.xml
 │   │   └── src/
 │   │       ├── main/java/com/hubsaude/assinador/
-│   │       │   ├── Main.java               # Ponto de entrada do assinador
-│   │       │   ├── SignatureService.java    # Interface do serviço
-│   │       │   ├── FakeSignatureService.java # Implementação simulada
-│   │       │   └── domain/                 # DTOs: SignRequest, ValidateRequest, SignatureResponse
+│   │       │   ├── AssinadorApplication.java   # Composition root; dispatcher CLI / serve
+│   │       │   ├── domain/
+│   │       │   │   ├── model/              # DTOs: SignRequest, ValidateRequest, SignatureResult
+│   │       │   │   └── service/            # SignatureService (interface) + FakeSignatureService
+│   │       │   ├── application/
+│   │       │   │   ├── SignUseCase.java
+│   │       │   │   ├── ValidateUseCase.java
+│   │       │   │   └── validation/         # RequestValidator + ValidationException
+│   │       │   ├── presentation/cli/
+│   │       │   │   ├── CliRunner.java      # Parsing de args
+│   │       │   │   └── CliPresenter.java   # Formatação JSON + exit codes
+│   │       │   └── infrastructure/json/
+│   │       │       └── JsonMapper.java     # Serialização Jackson
 │   │       └── test/java/com/hubsaude/assinador/
-│   │           └── FakeSignatureServiceTest.java
+│   │           ├── FakeSignatureServiceTest.java
+│   │           ├── application/
+│   │           │   ├── UseCasesTest.java
+│   │           │   └── validation/
+│   │           │       └── RequestValidatorTest.java
+│   │           └── infrastructure/json/
+│   │               └── JsonMapperTest.java
 │   └── assinatura/                         # CLI Go (Cobra)
 │       ├── cmd/
 │       │   ├── root.go                     # Comando raiz
