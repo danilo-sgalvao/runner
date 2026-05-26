@@ -20,47 +20,12 @@ class FakeSignatureServiceTest {
         SignRequest request = new SignRequest();
         request.setContent("documento teste");
 
-        SignatureResult response = service.sign(request);
+        SignatureResult result = service.sign(request);
 
-        assertNotNull(response);
-        assertTrue(response.isValid());
-        assertEquals(FakeSignatureService.FAKE_SIGNATURE, response.getSignature());
-        assertEquals("Assinatura criada com sucesso", response.getMessage());
-    }
-
-    @Test
-    void sign_conteudoNulo_retornaErro() {
-        SignRequest request = new SignRequest();
-        request.setContent(null);
-
-        SignatureResult response = service.sign(request);
-
-        assertNotNull(response);
-        assertFalse(response.isValid());
-        assertNull(response.getSignature());
-        assertTrue(response.getMessage().contains("content"));
-    }
-
-    @Test
-    void sign_conteudoVazio_retornaErro() {
-        SignRequest request = new SignRequest();
-        request.setContent("");
-
-        SignatureResult response = service.sign(request);
-
-        assertFalse(response.isValid());
-        assertNull(response.getSignature());
-    }
-
-    @Test
-    void sign_conteudoApenasEspacos_retornaErro() {
-        SignRequest request = new SignRequest();
-        request.setContent("   ");
-
-        SignatureResult response = service.sign(request);
-
-        assertFalse(response.isValid());
-        assertNull(response.getSignature());
+        assertNotNull(result);
+        assertTrue(result.isValid());
+        assertEquals(FakeSignatureService.FAKE_SIGNATURE, result.getSignature());
+        assertEquals("Assinatura criada com sucesso", result.getMessage());
     }
 
     // --------------------------------------------------------------- validate
@@ -71,11 +36,11 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
 
-        SignatureResult response = service.validate(request);
+        SignatureResult result = service.validate(request);
 
-        assertNotNull(response);
-        assertTrue(response.isValid());
-        assertEquals("Assinatura é válida", response.getMessage());
+        assertNotNull(result);
+        assertTrue(result.isValid());
+        assertEquals("Assinatura é válida", result.getMessage());
     }
 
     @Test
@@ -84,56 +49,10 @@ class FakeSignatureServiceTest {
         request.setContent("documento");
         request.setSignature("ASSINATURA-ERRADA");
 
-        SignatureResult response = service.validate(request);
+        SignatureResult result = service.validate(request);
 
-        assertFalse(response.isValid());
-        assertEquals("Assinatura é inválida", response.getMessage());
-    }
-
-    @Test
-    void validate_conteudoNulo_retornaErro() {
-        ValidateRequest request = new ValidateRequest();
-        request.setContent(null);
-        request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
-
-        SignatureResult response = service.validate(request);
-
-        assertFalse(response.isValid());
-        assertTrue(response.getMessage().contains("content"));
-    }
-
-    @Test
-    void validate_conteudoApenasEspacos_retornaErro() {
-        ValidateRequest request = new ValidateRequest();
-        request.setContent("   ");
-        request.setSignature(FakeSignatureService.FAKE_SIGNATURE);
-
-        SignatureResult response = service.validate(request);
-
-        assertFalse(response.isValid());
-    }
-
-    @Test
-    void validate_assinaturaNula_retornaErro() {
-        ValidateRequest request = new ValidateRequest();
-        request.setContent("documento");
-        request.setSignature(null);
-
-        SignatureResult response = service.validate(request);
-
-        assertFalse(response.isValid());
-        assertTrue(response.getMessage().contains("signature"));
-    }
-
-    @Test
-    void validate_assinaturaVazia_retornaErro() {
-        ValidateRequest request = new ValidateRequest();
-        request.setContent("documento");
-        request.setSignature("");
-
-        SignatureResult response = service.validate(request);
-
-        assertFalse(response.isValid());
+        assertFalse(result.isValid());
+        assertEquals("Assinatura é inválida", result.getMessage());
     }
 
     // --------------------------------------------------------- fluxo completo
@@ -152,5 +71,4 @@ class FakeSignatureServiceTest {
 
         assertTrue(validated.isValid());
     }
-
 }

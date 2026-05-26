@@ -1,15 +1,22 @@
 package com.hubsaude.assinador;
 
+import com.hubsaude.assinador.application.SignUseCase;
+import com.hubsaude.assinador.application.ValidateUseCase;
+import com.hubsaude.assinador.application.validation.RequestValidator;
+import com.hubsaude.assinador.application.validation.ValidationException;
 import com.hubsaude.assinador.domain.model.SignRequest;
 import com.hubsaude.assinador.domain.model.ValidateRequest;
 import com.hubsaude.assinador.domain.model.SignatureResult;
-import com.hubsaude.assinador.domain.service.SignatureService;
 import com.hubsaude.assinador.domain.service.FakeSignatureService;
+import com.hubsaude.assinador.domain.service.SignatureService;
 import com.hubsaude.assinador.infrastructure.json.JsonMapper;
 
 public class Main {
 
-    private static final SignatureService service = new FakeSignatureService();
+    private static final SignatureService service  = new FakeSignatureService();
+    private static final RequestValidator validator = new RequestValidator();
+    private static final SignUseCase      signUseCase     = new SignUseCase(service, validator);
+    private static final ValidateUseCase  validateUseCase = new ValidateUseCase(service, validator);
 
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -39,8 +46,11 @@ public class Main {
             }
         }
 
-        SignatureResult response = service.sign(request);
-        printResponse(response);
+        try {
+            printResponse(signUseCase.execute(request));
+        } catch (ValidationException e) {
+            printResponse(new SignatureResult(null, false, e.getMessage()));
+        }
     }
 
     private static void handleValidate(String[] args) {
@@ -53,8 +63,11 @@ public class Main {
             }
         }
 
-        SignatureResult response = service.validate(request);
-        printResponse(response);
+        try {
+            printResponse(validateUseCase.execute(request));
+        } catch (ValidationException e) {
+            printResponse(new SignatureResult(null, false, e.getMessage()));
+        }
     }
 
     private static void printResponse(SignatureResult response) {
