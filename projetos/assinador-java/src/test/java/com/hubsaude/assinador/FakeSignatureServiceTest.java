@@ -151,26 +151,4 @@ class FakeSignatureServiceTest {
         assertTrue(validated.isValid());
     }
 
-    // ------------------------------------------------------ toJson (Main)
-
-    @Test
-    void toJson_respostaValida_produziJsonCorreto() {
-        SignatureResponse r = new SignatureResponse("SIG==", true, "ok");
-        String json = Main.toJson(r);
-        assertEquals("{\"signature\":\"SIG==\",\"valid\":true,\"message\":\"ok\"}", json);
-    }
-
-    @Test
-    void toJson_signatureNula_produziNullSemAspas() {
-        SignatureResponse r = new SignatureResponse(null, false, "erro");
-        String json = Main.toJson(r);
-        assertEquals("{\"signature\":null,\"valid\":false,\"message\":\"erro\"}", json);
-    }
-
-    @Test
-    void toJson_messageComAspas_escapaCorretamente() {
-        SignatureResponse r = new SignatureResponse(null, false, "erro \"especial\"");
-        String json = Main.toJson(r);
-        assertTrue(json.contains("\\\"especial\\\""));
-    }
 }

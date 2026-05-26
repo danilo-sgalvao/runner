@@ -3,6 +3,7 @@ package com.hubsaude.assinador;
 import com.hubsaude.assinador.domain.SignRequest;
 import com.hubsaude.assinador.domain.ValidateRequest;
 import com.hubsaude.assinador.domain.SignatureResponse;
+import com.hubsaude.assinador.infrastructure.json.JsonMapper;
 
 public class Main {
 
@@ -55,25 +56,12 @@ public class Main {
     }
 
     private static void printResponse(SignatureResponse response) {
-        String json = toJson(response);
+        String json = JsonMapper.toJson(response);
         if (response.isValid()) {
             System.out.println(json);
         } else {
             System.err.println(json);
             System.exit(1);
         }
-    }
-
-    static String toJson(SignatureResponse r) {
-        String sig = r.getSignature() == null
-            ? "null"
-            : "\"" + escapeJson(r.getSignature()) + "\"";
-        return "{\"signature\":" + sig
-            + ",\"valid\":" + r.isValid()
-            + ",\"message\":\"" + escapeJson(r.getMessage()) + "\"}";
-    }
-
-    private static String escapeJson(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
