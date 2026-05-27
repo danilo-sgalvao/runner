@@ -83,6 +83,30 @@ Refatoração do `assinador-java` com introdução da interface `SignatureServic
 
 - **Atualização do `Main.java`**: passou a depender da interface `SignatureService` em vez da implementação direta, tornando o sistema preparado para substituição futura por uma implementação real de criptografia sem alteração no ponto de entrada.
 
+# 26/05/26 -- Danilo Galvão
+
+Refatoração completa da arquitetura do `assinador-java` (Fases 1 e 2 do plano de refatoração — Sprint 2).
+
+O objetivo era reorganizar a estrutura plana existente em camadas bem definidas antes da Sprint 3, que exige dois adaptadores de entrada (CLI e HTTP) compartilhando o mesmo núcleo de negócio. A refatoração foi executada em cinco checkpoints atômicos, cada um terminando com build verde e `mvn test` passando.
+
+**O que foi feito:**
+
+- **CP1 — Jackson + fat-jar**: substituição do `toJson`/`escapeJson` manual do `Main` por `infrastructure/json/JsonMapper` usando Jackson. Adicionada dependência `jackson-databind` ao `pom.xml` e configurado o `maven-shade-plugin` para gerar fat-jar self-contained (`assinador.jar` com todas as dependências embutidas), necessário porque o CLI Go distribui um único arquivo.
+
+- **CP2 — Reorganização do domínio**: criação dos pacotes `domain/model/` e `domain/service/`. DTOs movidos para `domain/model/`; `SignatureService` e `FakeSignatureService` movidos para `domain/service/`. `SignatureResponse` renomeada para `SignatureResult` (resultado de domínio, não DTO de transporte).
+
+- **CP3 — Camada `application`**: extração da validação de parâmetros do `FakeSignatureService` para `application/validation/RequestValidator` (fonte única das regras) e `ValidationException`. Criação de `SignUseCase` e `ValidateUseCase`, que validam via `RequestValidator` e delegam ao `SignatureService`. `FakeSignatureService` passa a assumir entrada já validada. Entrypoint religado nos use cases.
+
+- **CP4 — Camada `presentation/cli`**: extração do parsing de argumentos para `CliRunner` e da formatação de saída (JSON, stdout/stderr, exit codes) para `CliPresenter`. `Main.java` renomeado para `AssinadorApplication` — composition root enxuto. `<mainClass>` atualizado nos dois plugins do `pom.xml`.
+
+- **CP5 — Dispatcher dual-mode**: `AssinadorApplication` passou a detectar `args[0] == "serve"` e desviar para mensagem `"Modo servidor (serve) ainda não implementado."` + exit 1, estabelecendo o ponto de extensão da Sprint 3 sem ativar Spring.
+
+- **Documentação**: `CLAUDE.md` e `README.md` atualizados para refletir a nova estrutura de pacotes; `plano-refatoracao-arquitetura-java.md` atualizado com status das fases; `.gitignore` ajustado para ignorar `dependency-reduced-pom.xml` gerado pelo shade.
+
+**Resultado dos testes:**
+- Java: 22/22 ✅ (`FakeSignatureServiceTest` 3 + `RequestValidatorTest` 10 + `UseCasesTest` 5 + `JsonMapperTest` 3 + `SignatureControllerTest` 1 — contrato externo preservado em todos os cenários)
+- Contrato CLI Go (JSON, streams, exit codes, mensagens literais): verificado manualmente nos 4 cenários baseline ✅
+
 # 26/05/26 -- LUIZ AUGUSTO
 
 Implementação da Fase 3 do plano de refatoração da arquitetura Java: modo servidor HTTP (US-02.4).
