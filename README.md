@@ -28,9 +28,16 @@ Baixe o binário mais recente para sua plataforma na página de [Releases](https
 
 ---
 
-## Uso
+## Uso (binário baixado)
 
 > **Java não precisa estar instalado.** Na primeira execução, o `assinatura` detecta automaticamente o Java 21 do sistema; se não houver, baixa um JRE compatível e o instala em `~/.hubsaude/jre`. Tudo sem intervenção do usuário.
+
+O binário publicado nos Releases vem com o nome completo da plataforma (ex.: `assinatura-v0.2.0-windows-amd64.exe`). O nome `assinatura` usado nos exemplos abaixo **não está disponível automaticamente** — para usá-lo você precisa de uma das opções:
+
+- **Chamar pelo caminho/nome completo** do arquivo baixado, ou
+- **Renomear** o binário para `assinatura` (Linux/macOS) / `assinatura.exe` (Windows) e **adicioná-lo ao `PATH`**.
+
+Os exemplos a seguir assumem que isso já foi feito. Caso contrário, substitua `assinatura` pelo caminho real do executável (ex.: `.\assinatura-v0.2.0-windows-amd64.exe`).
 
 ### Exibir a versão
 
@@ -72,7 +79,9 @@ assinatura validate --help
 
 ---
 
-## Como compilar o projeto
+## Compilar e rodar a partir do código-fonte
+
+Para quem clonou o repositório, a ordem importa: **o `assinador.jar` precisa ser compilado antes** de executar o CLI, porque o CLI o localiza e o invoca como subprocesso.
 
 ### Pré-requisitos
 
@@ -87,19 +96,33 @@ git clone https://github.com/danilo-sgalvao/runner.git
 cd runner
 ```
 
-### 2. Compilar o assinador.jar
+### 2. Compilar o assinador.jar (passo obrigatório, vem primeiro)
 
 ```bash
 cd projetos/assinador-java
-mvn package
+mvn package          # gera target/assinador.jar
 cd ../..
 ```
 
-### 3. Executar o CLI em modo de desenvolvimento
+### 3. Executar o CLI
+
+Em modo de desenvolvimento, direto pelo Go (não requer renomear binário nem PATH):
 
 ```bash
 cd projetos/assinatura
 go run . sign --content "teste"
+```
+
+Ou gere o binário nativo e chame-o pelo caminho local (no Windows o `.exe` exige o prefixo `.\`; em Linux/macOS, `./`):
+
+```bash
+# Windows
+go build -o assinatura.exe .
+.\assinatura.exe sign --content "teste"
+
+# Linux / macOS
+go build -o assinatura .
+./assinatura sign --content "teste"
 ```
 
 ### 4. Executar os testes
@@ -108,24 +131,90 @@ go run . sign --content "teste"
 # Testes Go (na pasta projetos/assinatura)
 go test ./...
 
-# Testes Java (na pasta projetos/assinador-java)
+# Testes Java, incl. integração HTTP (na pasta projetos/assinador-java)
 mvn test
 ```
 
-### 5. Gerar binário nativo
+### 5. Gerar binários para as três plataformas
 
 ```bash
 # Ainda na pasta projetos/assinatura
-# Windows
-go build -o assinatura.exe .
-
-# Linux
-GOOS=linux GOARCH=amd64 go build -o assinatura-linux .
-
-# macOS
+GOOS=linux  GOARCH=amd64 go build -o assinatura-linux .
 GOOS=darwin GOARCH=amd64 go build -o assinatura-macos .
+GOOS=windows GOARCH=amd64 go build -o assinatura-windows.exe .
 cd ../..
 ```
+
+---
+
+## Modo servidor (HTTP)
+
+Além do modo CLI (uma invocação por comando), o `assinador.jar` pode rodar como **servidor HTTP** permanente, expondo os mesmos casos de uso via REST — útil para menor latência em chamadas repetidas. Hoje o servidor é iniciado diretamente pelo `java -jar`; a integração pelo CLI Go (`assinatura serve`, reuso e parada do processo) está prevista para uma próxima sprint.
+
+### Iniciar o servidor
+
+```bash
+# porta padrão 8080
+java -jar projetos/assinador-java/target/assinador.jar serve
+
+# porta personalizada
+java -jar projetos/assinador-java/target/assinador.jar serve --port 9090
+```
+
+Ao subir, o servidor registra `{"pid":...,"port":...}` em `~/.hubsaude/assinador.pid`.
+
+### Chamar os endpoints
+
+**Linux / macOS (bash) — `curl`:**
+
+```bash
+# POST /sign
+curl -X POST http://localhost:8080/sign \
+  -H "Content-Type: application/json" \
+  -d '{"content":"documento"}'
+# → {"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura criada com sucesso"}
+
+# POST /validate
+curl -X POST http://localhost:8080/validate \
+  -H "Content-Type: application/json" \
+  -d '{"content":"documento","signature":"MOCKED_SIGNATURE_BASE64_=="}'
+# → {"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura é válida"}
+```
+
+**Windows (PowerShell) — `Invoke-RestMethod`:**
+
+No PowerShell, `curl` é um alias de `Invoke-WebRequest` e não aceita a mesma sintaxe; use `Invoke-RestMethod`, que ainda desserializa a resposta JSON em um objeto.
+
+```powershell
+# POST /sign
+Invoke-RestMethod -Uri http://localhost:8080/sign -Method Post `
+  -ContentType "application/json" `
+  -Body '{"content":"documento"}'
+# → signature                  valid message
+#   ---------                  ----- -------
+#   MOCKED_SIGNATURE_BASE64_==   True Assinatura criada com sucesso
+
+# POST /validate
+Invoke-RestMethod -Uri http://localhost:8080/validate -Method Post `
+  -ContentType "application/json" `
+  -Body '{"content":"documento","signature":"MOCKED_SIGNATURE_BASE64_=="}'
+# → valid=True, message="Assinatura é válida"
+```
+
+> Em respostas **HTTP 400** (parâmetro ausente/vazio), `Invoke-RestMethod` lança um erro de terminação. No PowerShell 7+ o corpo fica em `$_.ErrorDetails.Message`; no Windows PowerShell 5.1 esse campo vem vazio e é preciso ler o stream da resposta:
+>
+> ```powershell
+> try {
+>   Invoke-RestMethod -Uri http://localhost:8080/sign -Method Post `
+>     -ContentType "application/json" -Body '{"content":""}'
+> } catch {
+>   $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+>   $reader.ReadToEnd()
+>   # → {"signature":null,"valid":false,"message":"Parâmetro 'content' inválido ou ausente"}
+> }
+> ```
+
+Parâmetros ausentes/vazios retornam **HTTP 400**; uma assinatura que não confere retorna **HTTP 200** com `"valid":false` (é resultado de negócio, não erro de entrada).
 
 ---
 
@@ -203,7 +292,8 @@ runner/
 │   │   ├── pom.xml
 │   │   └── src/
 │   │       ├── main/java/com/hubsaude/assinador/
-│   │       │   ├── AssinadorApplication.java   # Composition root; dispatcher CLI / serve
+│   │       │   ├── AssinadorApplication.java   # Composition root; dispatcher CLI / serve (--port)
+│   │       │   ├── WebApplication.java     # @SpringBootApplication (raiz do contexto, modo serve)
 │   │       │   ├── domain/
 │   │       │   │   ├── model/              # DTOs: SignRequest, ValidateRequest, SignatureResult
 │   │       │   │   └── service/            # SignatureService (interface) + FakeSignatureService
@@ -211,19 +301,30 @@ runner/
 │   │       │   │   ├── SignUseCase.java
 │   │       │   │   ├── ValidateUseCase.java
 │   │       │   │   └── validation/         # RequestValidator + ValidationException
-│   │       │   ├── presentation/cli/
-│   │       │   │   ├── CliRunner.java      # Parsing de args
-│   │       │   │   └── CliPresenter.java   # Formatação JSON + exit codes
-│   │       │   └── infrastructure/json/
-│   │       │       └── JsonMapper.java     # Serialização Jackson
+│   │       │   ├── presentation/
+│   │       │   │   ├── cli/
+│   │       │   │   │   ├── CliRunner.java      # Parsing de args
+│   │       │   │   │   └── CliPresenter.java   # Formatação JSON + exit codes
+│   │       │   │   └── http/               # modo serve: POST /sign, POST /validate
+│   │       │   │       ├── SignatureController.java
+│   │       │   │       ├── GlobalExceptionHandler.java
+│   │       │   │       └── dto/            # SignHttpRequest, ValidateHttpRequest, SignatureHttpResponse
+│   │       │   └── infrastructure/
+│   │       │       ├── json/
+│   │       │       │   └── JsonMapper.java     # Serialização Jackson (modo CLI)
+│   │       │       ├── config/
+│   │       │       │   └── AppConfig.java  # @Configuration: núcleo como beans Spring
+│   │       │       └── ServerStartupHandler.java  # registra PID/porta em ~/.hubsaude/
 │   │       └── test/java/com/hubsaude/assinador/
 │   │           ├── FakeSignatureServiceTest.java
 │   │           ├── application/
 │   │           │   ├── UseCasesTest.java
 │   │           │   └── validation/
 │   │           │       └── RequestValidatorTest.java
-│   │           └── infrastructure/json/
-│   │               └── JsonMapperTest.java
+│   │           ├── infrastructure/json/
+│   │           │   └── JsonMapperTest.java
+│   │           └── presentation/http/
+│   │               └── SignatureControllerTest.java
 │   └── assinatura/                         # CLI Go (Cobra)
 │       ├── cmd/
 │       │   ├── root.go                     # Comando raiz

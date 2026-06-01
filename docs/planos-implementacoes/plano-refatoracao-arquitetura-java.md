@@ -12,10 +12,10 @@ A refatoração estrutural (Fase 1) **não muda o comportamento externo**: o con
 |------|--------|--------|
 | Fase 1 — Refatoração estrutural | Sprint 2 | ✅ Concluída |
 | Fase 2 — Dispatcher dual-mode | Sprint 2 | ✅ Concluída |
-| Fase 3 — Modo servidor HTTP (US-02.4) | Sprint 3 | 📋 Pendente |
+| Fase 3 — Modo servidor HTTP (US-02.4) | Sprint 3 | ✅ Concluída |
 | Fase 4 — PKCS#11 (US-02.5) | Sprint 3 | 📋 Pendente |
 
-Fases 1 e 2 foram implementadas e commitadas (ver seção "Execução em checkpoints"). `CLAUDE.md` e `README.md` atualizados. A Sprint 3 pode começar a partir do ponto de extensão em `AssinadorApplication` (branch `serve`).
+Fases 1 a 3 foram implementadas e commitadas (ver seções "Execução em checkpoints" e "Fase 3"). `CLAUDE.md` e `README.md` atualizados. O modo `serve` sobe um servidor HTTP Spring Boot (`POST /sign`, `POST /validate`) reusando o mesmo núcleo do modo CLI; `mvn test` 29/29 verde. Resta a Fase 4 (PKCS#11) e, do lado do CLI Go, o caminho HTTP de gestão do servidor (US-01.5–01.9).
 
 ## Estado anterior à refatoração (início da Sprint 2)
 
@@ -120,14 +120,16 @@ Reorganiza o código e introduz Jackson, mantendo a saída do CLI idêntica e to
 
 11. ✅ Introduzir o despacho por modo em `AssinadorApplication`: `args[0] == "serve"` → stderr "Modo servidor (serve) ainda não implementado." + exit 1; qualquer outro comando segue pelo `CliRunner`. Ponto de extensão estabelecido sem ativar Spring.
 
-### Fase 3 — Sprint 3: modo servidor HTTP 📋 Pendente (US-02.4 e suporte a US-01.5–01.9)
+### Fase 3 — Sprint 3: modo servidor HTTP ✅ Concluída (US-02.4 e suporte a US-01.5–01.9)
 
-12. Adicionar `spring-boot-starter-web` (e o parent/BOM do Spring Boot) ao `pom.xml`; ajustar o `spring-boot-maven-plugin` para repackage mantendo `AssinadorApplication` como classe principal.
-13. Criar `presentation/http/SignatureController` com `POST /sign` e `POST /validate`, reusando **os mesmos** `SignUseCase`/`ValidateUseCase`.
-14. Criar os DTOs HTTP + `GlobalExceptionHandler` para estrutura de erro consistente (sucesso e falha).
-15. Criar a `@Configuration` que declara o núcleo como beans.
-16. Ativar o modo `serve` (porta padrão + flag `--port`); registrar PID/porta em `~/.hubsaude/` conforme US-01.5.
-17. Testes de integração dos endpoints (`@SpringBootTest`/MockMvc).
+12. ✅ Substituído o `maven-shade-plugin` pelo `spring-boot-maven-plugin` (goal `repackage`); adicionados `spring-boot-starter-web` e `spring-boot-starter-test` via BOM do Spring Boot 3.3.5, mantendo `AssinadorApplication` como `Start-Class`.
+13. ✅ Criado `presentation/http/SignatureController` com `POST /sign` e `POST /validate`, reusando **os mesmos** `SignUseCase`/`ValidateUseCase`.
+14. ✅ Criados os DTOs HTTP (`SignHttpRequest`, `ValidateHttpRequest`, `SignatureHttpResponse`) + `GlobalExceptionHandler` (`ValidationException` → 400; `Exception` → 500).
+15. ✅ Criado `infrastructure/config/AppConfig` (`@Configuration`) que declara o núcleo como beans, e `WebApplication` (`@SpringBootApplication`) como raiz do contexto.
+16. ✅ Modo `serve` ativado (porta padrão 8080 + flag `--port`); `ServerStartupHandler` registra PID/porta em `~/.hubsaude/assinador.pid` (suporte a US-01.5, US-01.7, US-01.8).
+17. ✅ `SignatureControllerTest`: 7 testes de integração (`@SpringBootTest` + MockMvc). Total do módulo: 29/29 verdes.
+
+> Pendente do lado do CLI Go (Sprint 3, fora deste plano de refatoração Java): US-01.5–01.9 — iniciar/reusar/parar o servidor e invocá-lo por HTTP.
 
 ### Fase 4 — Sprint 3: PKCS#11 📋 Pendente (US-02.5)
 
