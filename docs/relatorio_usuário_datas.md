@@ -135,3 +135,48 @@ A fase adiciona ao `assinador.jar` a capacidade de funcionar como servidor HTTP 
 
 **Resultado dos testes:**
 - Java (total): 29/29 ✅ (22 anteriores + 7 novos de integração HTTP)
+
+# 02/06/26 -- LUIZ AUGUSTO
+
+Implementação completa da Sprint 3 do Sistema Runner: modo servidor HTTP, gerenciamento de ciclo de vida via CLI e integração com dispositivo criptográfico via PKCS#11.
+
+**O que foi feito:**
+
+- **`GET /health` (`HealthController.java`)**: endpoint adicionado ao servidor Spring Boot. Retorna `{"status":"UP"}` e é usado pelo CLI Go para aguardar a inicialização do servidor antes de confirmar ao usuário.
+
+- **Integração PKCS#11 (US-02.5)**:
+  - `infrastructure/pkcs11/Pkcs11Config.java`: lê as variáveis de ambiente `HUBSAUDE_PKCS11_LIBRARY`, `HUBSAUDE_PKCS11_NAME` e `HUBSAUDE_PKCS11_PIN`. Retorna `null` quando a biblioteca não está configurada, sinalizando uso do serviço simulado.
+  - `infrastructure/pkcs11/Pkcs11ServiceFactory.java`: configura o provider `SunPKCS11` com a biblioteca nativa indicada e abre o `KeyStore` do dispositivo. Inclui documentação do setup com SoftHSM2.
+  - `domain/service/Pkcs11SignatureService.java`: implementa `SignatureService` usando chave privada PKCS#11 para assinar (`SHA256withRSA`) e tentando todos os certificados do dispositivo para validar.
+  - `infrastructure/config/AppConfig.java`: atualizado para usar PKCS#11 quando configurado, com fallback automático para `FakeSignatureService` e log de aviso ao usuário.
+
+- **Shutdown por inatividade (US-01.9)**:
+  - `infrastructure/RequestTimestamp.java`: componente Spring com `AtomicLong` que registra o instante da última requisição HTTP recebida.
+  - `infrastructure/InactivityFilter.java`: filtro `OncePerRequestFilter` que chama `touch()` a cada requisição, mantendo o timestamp atualizado.
+  - `infrastructure/InactivityShutdown.java`: lê a variável de ambiente `HUBSAUDE_TIMEOUT_MINUTES` e inicia uma thread daemon que chama `System.exit(0)` caso nenhuma requisição seja recebida dentro do período configurado.
+
+- **Testes Java**:
+  - `Pkcs11SignatureServiceTest.java` (5 testes): cobre chave não encontrada, exceção no KeyStore, KeyStore vazio, encoding Base64 inválido e erro geral — todos com KeyStore mockado via Mockito, sem necessidade de hardware.
+  - `SignatureServerSmokeTest.java`: adicionado `getHealth_retorna200ComStatusUp()` ao smoke test existente.
+
+- **Pacote `internal/process` (Go)**: `detach_unix.go` (build tag `!windows`) usa `Setsid: true`; `detach_windows.go` usa `CREATE_NEW_PROCESS_GROUP`. Garante que o servidor Java sobrevive ao encerramento do CLI em todas as plataformas.
+
+- **Pacote `internal/server` (Go)**:
+  - `manager.go`: lê, limpa e verifica o arquivo `~/.hubsaude/assinador.pid` gravado pelo `ServerStartupHandler`. `IsResponding` faz health check HTTP com timeout de 2 segundos. `PidFilePath` é exportado para sobrescrita em testes.
+  - `client.go`: `Sign()` e `Validate()` fazem `POST /sign` e `POST /validate` no servidor ativo, desserializando a resposta em `SignatureResponse`.
+
+- **`cmd/start.go` (US-01.5)**: comando `assinatura start [--port 8080] [--timeout 0]`. Verifica se já há instância ativa na mesma porta antes de iniciar. Inicia o JAR com `java -jar ... serve --port N` em background (processo detachado), passa `HUBSAUDE_TIMEOUT_MINUTES` via ambiente e aguarda o `/health` responder por até 30 segundos.
+
+- **`cmd/stop.go` (US-01.8)**: comando `assinatura stop [--port 0]`. Lê o PID de `~/.hubsaude/assinador.pid`, verifica se o processo responde, encerra via `os.FindProcess` + `Kill()` e limpa o arquivo de registro.
+
+- **`cmd/sign.go` e `cmd/validate.go` (US-01.6 + US-01.7)**: ambos verificam `~/.hubsaude/assinador.pid` e fazem health check antes de cada operação. Se o servidor estiver ativo, usam HTTP (menor latência). Caso contrário, caem automaticamente para `java -jar`. Flag `--local` força o modo local independentemente do estado do servidor.
+
+- **Testes Go**:
+  - `internal/server/manager_test.go` (4 testes): leitura de arquivo válido, arquivo inexistente, JSON corrompido e remoção via `ClearProcessInfo`.
+  - `internal/server/client_test.go` (3 testes): sign com servidor fake (`httptest`), validate com servidor fake e erro quando servidor indisponível.
+  - `cmd/start_test.go` (6 testes) e `cmd/stop_test.go` (5 testes): registro dos comandos no root, presença e valores padrão das flags.
+
+**Resultado dos testes:**
+- Java: 34/34 ✅ (29 anteriores + 5 novos de PKCS#11)
+- Go cmd: 28/28 ✅ (17 anteriores + 6 start + 5 stop)
+- Go server: 7/7 ✅ (4 manager + 3 client)

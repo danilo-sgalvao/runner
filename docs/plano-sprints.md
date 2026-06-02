@@ -200,10 +200,10 @@
 **para que** eu possa utilizar material criptográfico real ou simulado nas operações de assinatura.
 
 **Critérios de aceitação:**
-- [ ] Integração com PKCS#11 via `SunPKCS11` provider
-- [ ] Testes de integração utilizando SoftHSM2 (ou simulador equivalente)
-- [ ] Comportamento adequado quando dispositivo não está disponível (mensagem clara)
-- [ ] Documentação do setup necessário para uso com dispositivo criptográfico
+- [x] Integração com PKCS#11 via `SunPKCS11` provider
+- [x] Testes de integração utilizando SoftHSM2 (ou simulador equivalente)
+- [x] Comportamento adequado quando dispositivo não está disponível (mensagem clara)
+- [x] Documentação do setup necessário para uso com dispositivo criptográfico
 
 ### US-01.5 — Iniciar assinador.jar no modo servidor
 
@@ -212,10 +212,10 @@
 **para que** o assinador.jar fique disponível para requisições HTTP com menor latência.
 
 **Critérios de aceitação:**
-- [ ] CLI inicia o assinador.jar como processo em background na porta padrão
-- [ ] PID e porta do processo são registrados em `~/.hubsaude/` para gestão posterior
-- [ ] Feedback é exibido ao usuário confirmando que o servidor iniciou
-- [ ] Porta pode ser personalizada via parâmetro `--port`
+- [x] CLI inicia o assinador.jar como processo em background na porta padrão
+- [x] PID e porta do processo são registrados em `~/.hubsaude/` para gestão posterior
+- [x] Feedback é exibido ao usuário confirmando que o servidor iniciou
+- [x] Porta pode ser personalizada via parâmetro `--port`
 
 ### US-01.6 — Invocar assinador.jar via HTTP
 
@@ -224,10 +224,10 @@
 **para que** eu tenha menor latência nas operações, eliminando o overhead de cold start.
 
 **Critérios de aceitação:**
-- [ ] CLI envia requisições HTTP para os endpoints `/sign` e `/validate`
-- [ ] Modo servidor é utilizado por padrão quando há instância em execução
-- [ ] Fallback para modo local quando servidor não está disponível (ou conforme flag `--local`)
-- [ ] Testes de integração validam o fluxo CLI → HTTP → assinador.jar
+- [x] CLI envia requisições HTTP para os endpoints `/sign` e `/validate`
+- [x] Modo servidor é utilizado por padrão quando há instância em execução
+- [x] Fallback para modo local quando servidor não está disponível (ou conforme flag `--local`)
+- [x] Testes de integração validam o fluxo CLI → HTTP → assinador.jar
 
 ### US-01.7 — Detectar instância do assinador.jar em execução
 
@@ -236,10 +236,10 @@
 **para que** não sejam criadas instâncias duplicadas desnecessariamente.
 
 **Critérios de aceitação:**
-- [ ] CLI consulta `~/.hubsaude/` para verificar processo registrado
-- [ ] Verificação de health check HTTP confirma que o processo está respondendo
-- [ ] Se instância ativa é encontrada, CLI a reutiliza em vez de iniciar nova
-- [ ] Se processo registrado não responde, é considerado inativo
+- [x] CLI consulta `~/.hubsaude/` para verificar processo registrado
+- [x] Verificação de health check HTTP confirma que o processo está respondendo
+- [x] Se instância ativa é encontrada, CLI a reutiliza em vez de iniciar nova
+- [x] Se processo registrado não responde, é considerado inativo
 
 ### US-01.8 — Interromper execução do assinador.jar
 
@@ -248,10 +248,10 @@
 **para que** eu tenha controle sobre os processos em execução no meu sistema.
 
 **Critérios de aceitação:**
-- [ ] Comando `assinatura stop` encerra o assinador.jar na porta padrão
-- [ ] Parâmetro `--port` permite especificar a porta do processo a encerrar
-- [ ] Feedback é exibido confirmando o encerramento
-- [ ] Registro em `~/.hubsaude/` é atualizado após encerramento
+- [x] Comando `assinatura stop` encerra o assinador.jar na porta padrão
+- [x] Parâmetro `--port` permite especificar a porta do processo a encerrar
+- [x] Feedback é exibido confirmando o encerramento
+- [x] Registro em `~/.hubsaude/` é atualizado após encerramento
 
 ### US-01.9 — Agendar interrupção do assinador.jar por inatividade
 
@@ -260,9 +260,9 @@
 **para que** recursos do sistema sejam liberados automaticamente quando não estiverem em uso.
 
 **Critérios de aceitação:**
-- [ ] Parâmetro `--timeout <minutos>` define tempo máximo de inatividade
-- [ ] Após o período sem requisições, assinador.jar é encerrado automaticamente pelo CLI ou pelo próprio servidor
-- [ ] Mecanismo de timeout é documentado no help do CLI
+- [x] Parâmetro `--timeout <minutos>` define tempo máximo de inatividade
+- [x] Após o período sem requisições, assinador.jar é encerrado automaticamente pelo CLI ou pelo próprio servidor
+- [x] Mecanismo de timeout é documentado no help do CLI
 
 ---
 

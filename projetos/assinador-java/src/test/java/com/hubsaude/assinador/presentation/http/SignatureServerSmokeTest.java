@@ -57,4 +57,14 @@ class SignatureServerSmokeTest {
         assertEquals(HttpStatus.BAD_REQUEST, resp.getStatusCode());
         assertEquals("Parâmetro 'content' inválido ou ausente", resp.getBody().get("message"));
     }
+
+    @Test
+    void getHealth_retorna200ComStatusUp() {
+        ResponseEntity<Map<String, Object>> resp = rest.exchange(
+                "/health", org.springframework.http.HttpMethod.GET, null,
+                new org.springframework.core.ParameterizedTypeReference<>() {});
+
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
+        assertEquals("UP", resp.getBody().get("status"));
+    }
 }
