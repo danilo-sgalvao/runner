@@ -16,14 +16,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/danilo-sgalvao/runner/internal/config"
 )
 
 var (
 	metaClient     = &http.Client{Timeout: 15 * time.Second}
 	downloadClient = &http.Client{Timeout: 10 * time.Minute}
 )
-
-const releaseURL = "https://raw.githubusercontent.com/danilo-sgalvao/runner/main/release.json"
 
 type releaseFile struct {
 	JRE struct {
@@ -85,11 +85,7 @@ func JavaPath() (string, error) {
 }
 
 func hubsaudeJREDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".hubsaude", "jre"), nil
+	return config.JREDir()
 }
 
 func javaExe() string {
@@ -136,7 +132,7 @@ func systemJava(requireV21 bool) (string, bool) {
 }
 
 func fetchRelease() (*releaseFile, error) {
-	resp, err := metaClient.Get(releaseURL)
+	resp, err := metaClient.Get(config.ReleaseURL)
 	if err != nil {
 		return nil, err
 	}

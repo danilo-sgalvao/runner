@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/danilo-sgalvao/runner/internal/config"
 )
 
 // ProcessInfo descreve a instância do assinador.jar em execução.
@@ -23,8 +24,7 @@ func pidFile() string {
 	if PidFilePath != "" {
 		return PidFilePath
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".hubsaude", "assinador.pid")
+	return config.PidPath()
 }
 
 // ReadProcessInfo lê o registro salvo pelo servidor na inicialização.

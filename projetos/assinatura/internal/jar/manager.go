@@ -7,20 +7,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-)
 
-const releaseJSONURL = "https://raw.githubusercontent.com/danilo-sgalvao/runner/main/release.json"
+	"github.com/danilo-sgalvao/runner/internal/config"
+)
 
 type releaseConfig struct {
 	Jar struct {
 		URL string `json:"url"`
 	} `json:"jar"`
-}
-
-// jarLocalPath retorna o caminho onde o jar gerenciado é armazenado (~/.hubsaude/assinador.jar).
-func jarLocalPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".hubsaude", "assinador.jar")
 }
 
 // Find localiza o assinador.jar.
@@ -37,7 +31,7 @@ func Find() (string, error) {
 		}
 	}
 
-	if local := jarLocalPath(); fileExists(local) {
+	if local := config.JarPath(); fileExists(local) {
 		return local, nil
 	}
 
@@ -56,7 +50,7 @@ func Find() (string, error) {
 		)
 	}
 
-	local := jarLocalPath()
+	local := config.JarPath()
 	if !fileExists(local) {
 		return "", fmt.Errorf("download concluído mas assinador.jar não foi encontrado em %s", local)
 	}
@@ -87,7 +81,7 @@ func downloadJar() error {
 		return fmt.Errorf("servidor retornou status %d ao baixar assinador.jar", resp.StatusCode)
 	}
 
-	dest := jarLocalPath()
+	dest := config.JarPath()
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
@@ -103,7 +97,7 @@ func downloadJar() error {
 }
 
 func fetchReleaseConfig() (*releaseConfig, error) {
-	resp, err := http.Get(releaseJSONURL) //nolint:noctx
+	resp, err := http.Get(config.ReleaseURL) //nolint:noctx
 	if err != nil {
 		return nil, err
 	}
