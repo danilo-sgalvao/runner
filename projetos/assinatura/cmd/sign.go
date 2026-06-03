@@ -1,12 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-
-	"github.com/danilo-sgalvao/runner/internal/jar"
-	"github.com/danilo-sgalvao/runner/internal/jre"
 	"github.com/danilo-sgalvao/runner/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -29,33 +23,14 @@ Exemplos:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		if !signLocal {
-			if info, err := server.ReadProcessInfo(); err == nil && server.IsResponding(info.Port) {
-				resp, err := server.Sign(info.Port, signContent, "")
-				if err != nil {
-					return fmt.Errorf("erro ao chamar servidor: %w", err)
-				}
-				fmt.Printf("Assinatura: %s\nVálido: %v\nMensagem: %s\n",
-					resp.Signature, resp.Valid, resp.Message)
-				return nil
-			}
-		}
-
-		// Modo local: invoca java -jar diretamente
-		jarPath, err := jar.Find()
-		if err != nil {
+		handled, err := runViaServer(signLocal, func(port int) (*server.SignatureResponse, error) {
+			return server.Sign(port, signContent, "")
+		})
+		if handled {
 			return err
 		}
 
-		javaPath, err := jre.JavaPath()
-		if err != nil {
-			return fmt.Errorf("Java não disponível: %w", err)
-		}
-
-		javaCmd := exec.Command(javaPath, "-jar", jarPath, "sign", "--content", signContent)
-		javaCmd.Stdout = os.Stdout
-		javaCmd.Stderr = os.Stderr
-		return javaCmd.Run()
+		return runViaJar("sign", "--content", signContent)
 	},
 }
 

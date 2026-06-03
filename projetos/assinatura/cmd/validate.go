@@ -1,12 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-
-	"github.com/danilo-sgalvao/runner/internal/jar"
-	"github.com/danilo-sgalvao/runner/internal/jre"
 	"github.com/danilo-sgalvao/runner/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -30,37 +24,17 @@ Exemplos:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		if !validateLocal {
-			if info, err := server.ReadProcessInfo(); err == nil && server.IsResponding(info.Port) {
-				resp, err := server.Validate(info.Port, validateContent, validateSignature)
-				if err != nil {
-					return fmt.Errorf("erro ao chamar servidor: %w", err)
-				}
-				fmt.Printf("Assinatura: %s\nVálido: %v\nMensagem: %s\n",
-					resp.Signature, resp.Valid, resp.Message)
-				return nil
-			}
-		}
-
-		// Modo local: invoca java -jar diretamente
-		jarPath, err := jar.Find()
-		if err != nil {
+		handled, err := runViaServer(validateLocal, func(port int) (*server.SignatureResponse, error) {
+			return server.Validate(port, validateContent, validateSignature)
+		})
+		if handled {
 			return err
 		}
 
-		javaPath, err := jre.JavaPath()
-		if err != nil {
-			return fmt.Errorf("Java não disponível: %w", err)
-		}
-
-		javaCmd := exec.Command(javaPath, "-jar", jarPath,
-			"validate",
+		return runViaJar("validate",
 			"--content", validateContent,
 			"--signature", validateSignature,
 		)
-		javaCmd.Stdout = os.Stdout
-		javaCmd.Stderr = os.Stderr
-		return javaCmd.Run()
 	},
 }
 
