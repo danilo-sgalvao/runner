@@ -1,7 +1,6 @@
 package jar
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,13 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/danilo-sgalvao/runner/internal/config"
+	"github.com/danilo-sgalvao/runner/internal/release"
 )
-
-type releaseConfig struct {
-	Jar struct {
-		URL string `json:"url"`
-	} `json:"jar"`
-}
 
 // Find localiza o assinador.jar.
 // Ordem de busca:
@@ -63,7 +57,7 @@ func fileExists(path string) bool {
 }
 
 func downloadJar() error {
-	cfg, err := fetchReleaseConfig()
+	cfg, err := release.Fetch()
 	if err != nil {
 		return fmt.Errorf("não foi possível buscar release.json: %w", err)
 	}
@@ -94,22 +88,4 @@ func downloadJar() error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
-}
-
-func fetchReleaseConfig() (*releaseConfig, error) {
-	resp, err := http.Get(config.ReleaseURL) //nolint:noctx
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("servidor retornou status %d ao buscar release.json", resp.StatusCode)
-	}
-
-	var cfg releaseConfig
-	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("release.json inválido: %w", err)
-	}
-	return &cfg, nil
 }

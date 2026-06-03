@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,21 +17,13 @@ import (
 	"time"
 
 	"github.com/danilo-sgalvao/runner/internal/config"
+	"github.com/danilo-sgalvao/runner/internal/release"
 )
 
-var (
-	metaClient     = &http.Client{Timeout: 15 * time.Second}
-	downloadClient = &http.Client{Timeout: 10 * time.Minute}
-)
+var downloadClient = &http.Client{Timeout: 10 * time.Minute}
 
-type releaseFile struct {
-	JRE struct {
-		Version    string `json:"version"`
-		WindowsX64 string `json:"windows_x64"`
-		LinuxX64   string `json:"linux_x64"`
-		MacX64     string `json:"mac_x64"`
-	} `json:"jre"`
-}
+// releaseFile é um alias do tipo compartilhado em internal/release.
+type releaseFile = release.File
 
 var javaVersionRe = regexp.MustCompile(`version "(\d+)`)
 
@@ -66,7 +57,7 @@ func JavaPath() (string, error) {
 		return path, nil
 	}
 
-	rel, err := fetchRelease()
+	rel, err := release.Fetch()
 	if err != nil {
 		// Offline fallback: use any java in PATH without version check
 		if path, ok := systemJava(false); ok {
@@ -129,22 +120,6 @@ func systemJava(requireV21 bool) (string, bool) {
 		return "", false
 	}
 	return path, major >= 21
-}
-
-func fetchRelease() (*releaseFile, error) {
-	resp, err := metaClient.Get(config.ReleaseURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d ao buscar release.json", resp.StatusCode)
-	}
-	var rel releaseFile
-	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
-		return nil, err
-	}
-	return &rel, nil
 }
 
 func platformURL(rel *releaseFile) (string, error) {
