@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -69,21 +68,12 @@ Exemplos:
 		}
 
 		fmt.Printf("Aguardando servidor iniciar na porta %d...\n", startPort)
-		deadline := time.Now().Add(30 * time.Second)
-		pollClient := &http.Client{Timeout: time.Second}
-		for time.Now().Before(deadline) {
-			time.Sleep(500 * time.Millisecond)
-			resp, err := pollClient.Get(fmt.Sprintf("http://localhost:%d/health", startPort))
-			if err == nil {
-				resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					fmt.Printf("Servidor iniciado na porta %d (PID %d)\n", startPort, javaCmd.Process.Pid)
-					return nil
-				}
-			}
+		if err := server.WaitUntilReady(startPort, 30*time.Second); err != nil {
+			return fmt.Errorf("servidor não respondeu após 30 segundos — verifique se a porta %d está disponível", startPort)
 		}
 
-		return fmt.Errorf("servidor não respondeu após 30 segundos — verifique se a porta %d está disponível", startPort)
+		fmt.Printf("Servidor iniciado na porta %d (PID %d)\n", startPort, javaCmd.Process.Pid)
+		return nil
 	},
 }
 

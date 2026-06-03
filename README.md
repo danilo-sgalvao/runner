@@ -396,24 +396,31 @@ runner/
 │   │               ├── SignatureControllerTest.java
 │   │               └── SignatureServerSmokeTest.java    # Tomcat real (RANDOM_PORT)
 │   └── assinatura/                         # CLI Go (Cobra)
-│       ├── cmd/
+│       ├── cmd/                            # Apenas apresentação Cobra
 │       │   ├── root.go                     # Comando raiz
 │       │   ├── version.go                  # Subcomando version
 │       │   ├── sign.go                     # Roteia para HTTP se servidor ativo; --local força modo direto
 │       │   ├── validate.go                 # Idem
 │       │   ├── start.go                    # Inicia assinador.jar em background; --port, --timeout
 │       │   ├── stop.go                     # Encerra servidor pelo PID registrado; --port
-│       │   ├── jar.go                      # Localização do assinador.jar
-│       │   └── *_test.go                   # Testes unitários
+│       │   ├── run.go                      # Helpers runViaServer() / runViaJar()
+│       │   └── *_test.go                   # Testes unitários e de integração
 │       ├── internal/
+│       │   ├── config/
+│       │   │   └── paths.go               # Fonte única: caminhos ~/.hubsaude + URL do release.json
+│       │   ├── release/
+│       │   │   └── release.go             # Fetch() — leitura compartilhada do release.json
+│       │   ├── jar/
+│       │   │   ├── manager.go             # Find() — descoberta e auto-download do assinador.jar
+│       │   │   └── manager_test.go
 │       │   ├── jre/
-│       │   │   ├── manager.go              # Detecção e auto-download do JRE
+│       │   │   ├── manager.go             # Detecção e auto-download do JRE
 │       │   │   └── manager_test.go
 │       │   ├── server/
-│       │   │   ├── manager.go              # Lê/escreve ~/.hubsaude/assinador.pid; IsResponding()
-│       │   │   ├── manager_test.go
+│       │   │   ├── manager.go             # Lê/escreve ~/.hubsaude/assinador.pid; IsResponding()
 │       │   │   ├── client.go              # Sign() e Validate() via POST HTTP
-│       │   │   └── client_test.go
+│       │   │   ├── wait.go                # WaitUntilReady() — polling do /health
+│       │   │   └── *_test.go
 │       │   └── process/
 │       │       ├── detach_unix.go          # Setsid para detach do processo pai (Unix)
 │       │       └── detach_windows.go       # CREATE_NEW_PROCESS_GROUP (Windows)
