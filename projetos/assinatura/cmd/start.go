@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/danilo-sgalvao/runner/internal/jar"
 	"github.com/danilo-sgalvao/runner/internal/jre"
 	"github.com/danilo-sgalvao/runner/internal/process"
 	"github.com/danilo-sgalvao/runner/internal/server"
@@ -41,7 +42,7 @@ Exemplos:
 			}
 		}
 
-		jarPath, err := encontrarJar()
+		jarPath, err := jar.Find()
 		if err != nil {
 			return err
 		}

@@ -51,10 +51,20 @@ assinatura version
 assinatura sign --content "conteudo a ser assinado"
 ```
 
-Exemplo de saída:
+Se o servidor estiver ativo (ver `start` abaixo), o comando roteia automaticamente via HTTP (menor latência). Caso contrário, invoca o `assinador.jar` diretamente. Use `--local` para forçar o modo direto mesmo com servidor ativo.
+
+Saída no **modo local** (JSON em stdout):
 
 ```json
 {"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura criada com sucesso"}
+```
+
+Saída no **modo HTTP** (servidor ativo):
+
+```
+Assinatura: MOCKED_SIGNATURE_BASE64_==
+Válido: true
+Mensagem: Assinatura criada com sucesso
 ```
 
 ### Validar uma assinatura digital
@@ -63,10 +73,46 @@ Exemplo de saída:
 assinatura validate --content "conteudo a ser assinado" --signature "MOCKED_SIGNATURE_BASE64_=="
 ```
 
-Exemplo de saída:
+Mesma lógica de roteamento do `sign`. Use `--local` para forçar modo direto.
+
+Saída no **modo local** (JSON em stdout):
 
 ```json
 {"signature":"MOCKED_SIGNATURE_BASE64_==","valid":true,"message":"Assinatura é válida"}
+```
+
+### Iniciar o servidor em background
+
+**Linux / macOS:**
+```bash
+assinatura start
+assinatura start --port 9090
+assinatura start --port 9090 --timeout 30
+```
+
+**Windows (PowerShell):**
+```powershell
+.\assinatura.exe start
+.\assinatura.exe start --port 9090
+.\assinatura.exe start --port 9090 --timeout 30
+```
+
+O servidor fica ativo em background; `sign` e `validate` passam a usá-lo automaticamente. O PID e a porta são registrados em `~/.hubsaude/assinador.pid`.
+
+### Encerrar o servidor
+
+**Linux / macOS:**
+```bash
+assinatura stop
+
+# se iniciado em porta não-padrão
+assinatura stop --port 9090
+```
+
+**Windows (PowerShell):**
+```powershell
+.\assinatura.exe stop
+.\assinatura.exe stop --port 9090
 ```
 
 ### Ajuda
@@ -75,6 +121,8 @@ Exemplo de saída:
 assinatura --help
 assinatura sign --help
 assinatura validate --help
+assinatura start --help
+assinatura stop --help
 ```
 
 ---
@@ -149,15 +197,26 @@ cd ../..
 
 ## Modo servidor (HTTP)
 
-Além do modo CLI (uma invocação por comando), o `assinador.jar` pode rodar como **servidor HTTP** permanente, expondo os mesmos casos de uso via REST — útil para menor latência em chamadas repetidas. Hoje o servidor é iniciado diretamente pelo `java -jar`; a integração pelo CLI Go (`assinatura serve`, reuso e parada do processo) está prevista para uma próxima sprint.
+Além do modo CLI (uma invocação por comando), o `assinador.jar` pode rodar como **servidor HTTP** permanente, expondo os mesmos casos de uso via REST — útil para menor latência em chamadas repetidas. O ciclo de vida do servidor é gerenciado pelo CLI Go via `assinatura start` e `assinatura stop` (ver seção "Uso" acima). O encerramento automático por inatividade é controlado por `--timeout`.
 
-### Iniciar o servidor
+### Iniciar o servidor (via CLI — recomendado)
+
+**Linux / macOS:**
+```bash
+assinatura start
+assinatura start --port 9090 --timeout 30
+```
+
+**Windows (PowerShell):**
+```powershell
+.\assinatura.exe start
+.\assinatura.exe start --port 9090 --timeout 30
+```
+
+### Iniciar o servidor (direto, sem CLI)
 
 ```bash
-# porta padrão 8080
 java -jar projetos/assinador-java/target/assinador.jar serve
-
-# porta personalizada
 java -jar projetos/assinador-java/target/assinador.jar serve --port 9090
 ```
 
@@ -297,6 +356,7 @@ runner/
 │   │       │   ├── domain/
 │   │       │   │   ├── model/              # DTOs: SignRequest, ValidateRequest, SignatureResult
 │   │       │   │   └── service/            # SignatureService (interface) + FakeSignatureService
+│   │       │   │                           # + Pkcs11SignatureService (SunPKCS11; ativado por HUBSAUDE_PKCS11_LIBRARY)
 │   │       │   ├── application/
 │   │       │   │   ├── SignUseCase.java
 │   │       │   │   ├── ValidateUseCase.java
@@ -305,18 +365,27 @@ runner/
 │   │       │   │   ├── cli/
 │   │       │   │   │   ├── CliRunner.java      # Parsing de args
 │   │       │   │   │   └── CliPresenter.java   # Formatação JSON + exit codes
-│   │       │   │   └── http/               # modo serve: POST /sign, POST /validate
+│   │       │   │   └── http/               # modo serve: POST /sign, POST /validate, GET /health
 │   │       │   │       ├── SignatureController.java
+│   │       │   │       ├── HealthController.java
 │   │       │   │       ├── GlobalExceptionHandler.java
 │   │       │   │       └── dto/            # SignHttpRequest, ValidateHttpRequest, SignatureHttpResponse
 │   │       │   └── infrastructure/
 │   │       │       ├── json/
-│   │       │       │   └── JsonMapper.java     # Serialização Jackson (modo CLI)
+│   │       │       │   └── JsonMapper.java         # Serialização Jackson (modo CLI)
 │   │       │       ├── config/
-│   │       │       │   └── AppConfig.java  # @Configuration: núcleo como beans Spring
-│   │       │       └── ServerStartupHandler.java  # registra PID/porta em ~/.hubsaude/
+│   │       │       │   └── AppConfig.java          # @Configuration: seleciona PKCS#11 ou Fake; declara beans
+│   │       │       ├── pkcs11/
+│   │       │       │   ├── Pkcs11Config.java       # Lê HUBSAUDE_PKCS11_LIBRARY/NAME/PIN do ambiente
+│   │       │       │   └── Pkcs11ServiceFactory.java # Configura SunPKCS11 e abre KeyStore
+│   │       │       ├── ServerStartupHandler.java   # Registra PID/porta em ~/.hubsaude/assinador.pid
+│   │       │       ├── InactivityFilter.java       # Registra timestamp da última requisição
+│   │       │       ├── RequestTimestamp.java        # Bean compartilhado de timestamp
+│   │       │       └── InactivityShutdown.java     # Encerra após HUBSAUDE_TIMEOUT_MINUTES de inatividade
 │   │       └── test/java/com/hubsaude/assinador/
 │   │           ├── FakeSignatureServiceTest.java
+│   │           ├── domain/service/
+│   │           │   └── Pkcs11SignatureServiceTest.java  # 5 testes com Mockito
 │   │           ├── application/
 │   │           │   ├── UseCasesTest.java
 │   │           │   └── validation/
@@ -324,18 +393,30 @@ runner/
 │   │           ├── infrastructure/json/
 │   │           │   └── JsonMapperTest.java
 │   │           └── presentation/http/
-│   │               └── SignatureControllerTest.java
+│   │               ├── SignatureControllerTest.java
+│   │               └── SignatureServerSmokeTest.java    # Tomcat real (RANDOM_PORT)
 │   └── assinatura/                         # CLI Go (Cobra)
 │       ├── cmd/
 │       │   ├── root.go                     # Comando raiz
 │       │   ├── version.go                  # Subcomando version
-│       │   ├── sign.go                     # Subcomando sign
-│       │   ├── validate.go                 # Subcomando validate
+│       │   ├── sign.go                     # Roteia para HTTP se servidor ativo; --local força modo direto
+│       │   ├── validate.go                 # Idem
+│       │   ├── start.go                    # Inicia assinador.jar em background; --port, --timeout
+│       │   ├── stop.go                     # Encerra servidor pelo PID registrado; --port
 │       │   ├── jar.go                      # Localização do assinador.jar
 │       │   └── *_test.go                   # Testes unitários
-│       ├── internal/jre/
-│       │   ├── manager.go                  # Detecção e auto-download do JRE
-│       │   └── manager_test.go
+│       ├── internal/
+│       │   ├── jre/
+│       │   │   ├── manager.go              # Detecção e auto-download do JRE
+│       │   │   └── manager_test.go
+│       │   ├── server/
+│       │   │   ├── manager.go              # Lê/escreve ~/.hubsaude/assinador.pid; IsResponding()
+│       │   │   ├── manager_test.go
+│       │   │   ├── client.go              # Sign() e Validate() via POST HTTP
+│       │   │   └── client_test.go
+│       │   └── process/
+│       │       ├── detach_unix.go          # Setsid para detach do processo pai (Unix)
+│       │       └── detach_windows.go       # CREATE_NEW_PROCESS_GROUP (Windows)
 │       ├── main.go                         # Ponto de entrada do CLI
 │       └── go.mod
 ├── release.json                            # Metadados/URLs do JRE para download

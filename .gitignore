@@ -86,3 +86,4 @@ referencia/
 # Documentação interna
 # =========================
 docs/guia-tecnico.md
+docs/planos-implementacoes/plano-refatoracao-go.md

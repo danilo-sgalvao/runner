@@ -1,4 +1,4 @@
-package cmd
+package jar
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestEncontrarJar_JarAoLadoDoExecutavel(t *testing.T) {
+func TestFind_JarAoLadoDoExecutavel(t *testing.T) {
 	exe, err := os.Executable()
 	if err != nil {
 		t.Skip("não foi possível obter caminho do executável de teste")
@@ -18,7 +18,7 @@ func TestEncontrarJar_JarAoLadoDoExecutavel(t *testing.T) {
 	}
 	defer os.Remove(fakeJar)
 
-	path, err := encontrarJar()
+	path, err := Find()
 	if err != nil {
 		t.Fatalf("esperava encontrar jar ao lado do executável, obteve erro: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestEncontrarJar_JarAoLadoDoExecutavel(t *testing.T) {
 	}
 }
 
-func TestEncontrarJar_SemJar_RetornaErro(t *testing.T) {
+func TestFind_SemJar_RetornaErro(t *testing.T) {
 	// Remove jar do lado do executável se existir (cleanup de outros testes)
 	exe, _ := os.Executable()
 	fakeJar := filepath.Join(filepath.Dir(exe), "assinador.jar")
@@ -35,12 +35,12 @@ func TestEncontrarJar_SemJar_RetornaErro(t *testing.T) {
 
 	// Verifica que retorna erro quando o jar não está em lugar nenhum padrão
 	// (exceto se o desenvolvedor tiver o jar em ../assinador-java/target/)
-	_, err := encontrarJar()
+	_, err := Find()
 	// Não fazemos assert fatal aqui porque em desenvolvimento o jar pode existir
 	_ = err
 }
 
-func TestEncontrarJar_RetornaCaminhoAbsolutoOuRelativo(t *testing.T) {
+func TestFind_RetornaCaminhoAbsolutoOuRelativo(t *testing.T) {
 	exe, err := os.Executable()
 	if err != nil {
 		t.Skip("não foi possível obter caminho do executável de teste")
@@ -52,7 +52,7 @@ func TestEncontrarJar_RetornaCaminhoAbsolutoOuRelativo(t *testing.T) {
 	}
 	defer os.Remove(fakeJar)
 
-	path, err := encontrarJar()
+	path, err := Find()
 	if err != nil {
 		t.Fatalf("não esperava erro: %v", err)
 	}

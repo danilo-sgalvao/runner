@@ -1,4 +1,4 @@
-package cmd
+package jar
 
 import (
 	"encoding/json"
@@ -23,13 +23,13 @@ func jarLocalPath() string {
 	return filepath.Join(home, ".hubsaude", "assinador.jar")
 }
 
-// encontrarJar localiza o assinador.jar.
+// Find localiza o assinador.jar.
 // Ordem de busca:
 //  1. Mesma pasta do executável (modo distribuído)
 //  2. ~/.hubsaude/assinador.jar (baixado automaticamente)
 //  3. ../assinador-java/target/ (modo desenvolvimento local)
 //  4. Download automático via release.json do repositório
-func encontrarJar() (string, error) {
+func Find() (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		jarAoLado := filepath.Join(filepath.Dir(exe), "assinador.jar")
 		if _, err := os.Stat(jarAoLado); err == nil {

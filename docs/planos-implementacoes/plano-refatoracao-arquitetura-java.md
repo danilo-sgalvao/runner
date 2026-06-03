@@ -13,9 +13,9 @@ A refatoração estrutural (Fase 1) **não muda o comportamento externo**: o con
 | Fase 1 — Refatoração estrutural | Sprint 2 | ✅ Concluída |
 | Fase 2 — Dispatcher dual-mode | Sprint 2 | ✅ Concluída |
 | Fase 3 — Modo servidor HTTP (US-02.4) | Sprint 3 | ✅ Concluída |
-| Fase 4 — PKCS#11 (US-02.5) | Sprint 3 | 📋 Pendente |
+| Fase 4 — PKCS#11 (US-02.5) | Sprint 3 | ✅ Concluída |
 
-Fases 1 a 3 foram implementadas e commitadas (ver seções "Execução em checkpoints" e "Fase 3"). `CLAUDE.md` e `README.md` atualizados. O modo `serve` sobe um servidor HTTP Spring Boot (`POST /sign`, `POST /validate`) reusando o mesmo núcleo do modo CLI; `mvn test` 29/29 verde. Resta a Fase 4 (PKCS#11) e, do lado do CLI Go, o caminho HTTP de gestão do servidor (US-01.5–01.9).
+Todas as quatro fases foram implementadas e commitadas. `CLAUDE.md` e `README.md` atualizados. O modo `serve` sobe um servidor HTTP Spring Boot (`POST /sign`, `POST /validate`) reusando o mesmo núcleo do modo CLI; `mvn test` 34/34 verde. A Fase 4 (PKCS#11) introduziu `Pkcs11Config`, `Pkcs11ServiceFactory` e `Pkcs11SignatureService` — seleção automática via `HUBSAUDE_PKCS11_LIBRARY`, com fallback para `FakeSignatureService`. Do lado do CLI Go, o caminho HTTP de gestão do servidor (US-01.5–01.9) também foi concluído na Sprint 3.
 
 ## Estado anterior à refatoração (início da Sprint 2)
 
@@ -131,11 +131,11 @@ Reorganiza o código e introduz Jackson, mantendo a saída do CLI idêntica e to
 
 > Pendente do lado do CLI Go (Sprint 3, fora deste plano de refatoração Java): US-01.5–01.9 — iniciar/reusar/parar o servidor e invocá-lo por HTTP.
 
-### Fase 4 — Sprint 3: PKCS#11 📋 Pendente (US-02.5)
+### Fase 4 — Sprint 3: PKCS#11 ✅ Concluída (US-02.5)
 
-18. Criar `infrastructure/crypto/Pkcs11SignatureService` (implementação alternativa de `SignatureService` via `SunPKCS11`); o campo `token` já existente em `SignRequest` passa a ser usado.
-19. Selecionar a implementação (fake vs. PKCS#11) por profile/flag; mensagem clara quando o dispositivo não está disponível.
-20. Testes de integração com SoftHSM2 (ou simulador equivalente).
+18. ✅ `domain/service/Pkcs11SignatureService` implementado via `SunPKCS11`; o campo `token` de `SignRequest` é usado como alias da chave privada no KeyStore. Nota: alocado em `domain/service/` em vez de `infrastructure/crypto/` previsto no diagrama (decisão de implementação — a classe depende apenas de `java.security`, sem infraestrutura).
+19. ✅ Seleção automática via variável de ambiente `HUBSAUDE_PKCS11_LIBRARY`; `Pkcs11Config.fromEnvironment()` retorna `null` quando ausente; `AppConfig` instancia `Pkcs11ServiceFactory.create()` com fallback para `FakeSignatureService` e mensagem de aviso em stderr.
+20. ✅ 5 testes unitários com Mockito em `Pkcs11SignatureServiceTest` cobrem: chave não encontrada, exceção no KeyStore (sign/validate), KeyStore vazio e encoding Base64 inválido. Testes com SoftHSM2 real requerem setup de SO e são documentados no Javadoc de `Pkcs11ServiceFactory` (fora do repositório).
 
 ## Impacto fora do Java
 
