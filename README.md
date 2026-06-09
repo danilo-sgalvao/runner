@@ -12,7 +12,7 @@ O projeto é composto por:
 
 - **`assinatura`** — CLI multiplataforma (Go) para criação e validação de assinaturas digitais
 - **`assinador.jar`** — Aplicação Java que realiza (de forma simulada) as operações de assinatura
-- **`simulador`** — CLI multiplataforma (Go) para gerenciamento do Simulador do HubSaúde *(previsto para próximas sprints)*
+- **`simulador`** — CLI multiplataforma (Go) para gerenciar o ciclo de vida do Simulador do HubSaúde (validador FHIR), baixado dinamicamente do repositório da disciplina
 
 ---
 
@@ -22,9 +22,9 @@ Baixe o binário mais recente para sua plataforma na página de [Releases](https
 
 | Plataforma | Arquivo |
 |---|---|
-| Windows | `assinatura-<versão>-windows-amd64.exe` |
-| Linux | `assinatura-<versão>-linux-amd64` |
-| macOS | `assinatura-<versão>-darwin-amd64` |
+| Windows | `assinatura-<versão>-windows-amd64.exe` · `simulador-<versão>-windows-amd64.exe` |
+| Linux | `assinatura-<versão>-linux-amd64` · `simulador-<versão>-linux-amd64` |
+| macOS | `assinatura-<versão>-darwin-amd64` · `simulador-<versão>-darwin-amd64` |
 
 ---
 
@@ -127,13 +127,84 @@ assinatura stop --help
 
 ---
 
+## Gerenciar o Simulador do HubSaúde (`simulador`)
+
+O CLI `simulador` inicia, encerra e monitora o **Simulador do HubSaúde** (o validador FHIR
+`hubsaude-validador-api`). O `simulador.jar` é um artefato **externo**: na primeira execução, o
+CLI o baixa automaticamente do repositório da disciplina e o guarda em `~/.hubsaude/simulador.jar`
+(não rebaixa se a versão local já for a mais recente). O Java também é provisionado
+automaticamente, como no `assinatura`.
+
+Os exemplos assumem o binário renomeado para `simulador` / `simulador.exe` e no `PATH` (mesma
+observação da seção anterior); caso contrário, use o caminho completo do executável.
+
+> **Porta padrão 8081.** Diferente do `assinador.jar` (8080), o Simulador usa 8081 por padrão,
+> para que ambos possam rodar na mesma máquina. Troque com `--port`.
+
+### Iniciar o Simulador
+
+**Linux / macOS:**
+```bash
+simulador start
+simulador start --port 9443
+```
+
+**Windows (PowerShell):**
+```powershell
+.\simulador.exe start
+.\simulador.exe start --port 9443
+```
+
+O processo sobe em background e o PID/porta são registrados em `~/.hubsaude/simulador.pid`. O
+**primeiro start pode levar cerca de um minuto**: o validador carrega os pacotes FHIR embutidos
+antes de aceitar requisições; o CLI aguarda a readiness (`/actuator/health/readiness`) e só então
+retorna o controle.
+
+### Consultar o status
+
+```bash
+simulador status
+```
+```
+Simulador em execução na porta 8081 (PID 22628) — status: UP
+```
+
+Se não houver instância ativa, informa que o Simulador não está em execução (e limpa registros
+órfãos). O status é obtido via `GET /actuator/health`.
+
+### Encerrar o Simulador
+
+**Linux / macOS:**
+```bash
+simulador stop
+simulador stop --port 9443
+```
+
+**Windows (PowerShell):**
+```powershell
+.\simulador.exe stop
+```
+
+O encerramento é feito pelo PID registrado (o validador não expõe endpoint de shutdown).
+
+### Fontes alternativas do jar
+
+Para apontar para um `simulador.jar` específico (ex.: build local ou outra release), use
+`--source` no `start`:
+
+```bash
+simulador start --source https://exemplo.org/simulador.jar
+```
+
+---
+
 ## Compilar e rodar a partir do código-fonte
 
 Para quem clonou o repositório, a ordem importa: **o `assinador.jar` precisa ser compilado antes** de executar o CLI, porque o CLI o localiza e o invoca como subprocesso.
 
 ### Pré-requisitos
 
-- [Go 1.24+](https://go.dev/dl/)
+- [Go 1.26+](https://go.dev/dl/)
 - [Java JDK 21+](https://adoptium.net/)
 - [Maven 3.9+](https://maven.apache.org/download.cgi)
 
@@ -395,38 +466,35 @@ runner/
 │   │           └── presentation/http/
 │   │               ├── SignatureControllerTest.java
 │   │               └── SignatureServerSmokeTest.java    # Tomcat real (RANDOM_PORT)
-│   └── assinatura/                         # CLI Go (Cobra)
-│       ├── cmd/                            # Apenas apresentação Cobra
-│       │   ├── root.go                     # Comando raiz
-│       │   ├── version.go                  # Subcomando version
-│       │   ├── sign.go                     # Roteia para HTTP se servidor ativo; --local força modo direto
-│       │   ├── validate.go                 # Idem
-│       │   ├── start.go                    # Inicia assinador.jar em background; --port, --timeout
-│       │   ├── stop.go                     # Encerra servidor pelo PID registrado; --port
-│       │   ├── run.go                      # Helpers runViaServer() / runViaJar()
-│       │   └── *_test.go                   # Testes unitários e de integração
-│       ├── internal/
-│       │   ├── config/
-│       │   │   └── paths.go               # Fonte única: caminhos ~/.hubsaude + URL do release.json
-│       │   ├── release/
-│       │   │   └── release.go             # Fetch() — leitura compartilhada do release.json
-│       │   ├── jar/
-│       │   │   ├── manager.go             # Find() — descoberta e auto-download do assinador.jar
-│       │   │   └── manager_test.go
-│       │   ├── jre/
-│       │   │   ├── manager.go             # Detecção e auto-download do JRE
-│       │   │   └── manager_test.go
-│       │   ├── server/
-│       │   │   ├── manager.go             # Lê/escreve ~/.hubsaude/assinador.pid; IsResponding()
-│       │   │   ├── client.go              # Sign() e Validate() via POST HTTP
-│       │   │   ├── wait.go                # WaitUntilReady() — polling do /health
-│       │   │   └── *_test.go
-│       │   └── process/
-│       │       ├── detach_unix.go          # Setsid para detach do processo pai (Unix)
-│       │       └── detach_windows.go       # CREATE_NEW_PROCESS_GROUP (Windows)
-│       ├── main.go                         # Ponto de entrada do CLI
-│       └── go.mod
-├── release.json                            # Metadados/URLs do JRE para download
+│   ├── assinatura/                         # CLI Go (Cobra) — assinador.jar
+│   │   ├── cmd/                            # Apenas apresentação Cobra
+│   │   │   ├── root.go, version.go
+│   │   │   ├── sign.go / validate.go       # Roteia para HTTP se servidor ativo; --local força modo direto
+│   │   │   ├── start.go / stop.go          # Ciclo de vida do servidor; --port, --timeout
+│   │   │   ├── run.go                      # Helpers runViaServer() / runViaJar()
+│   │   │   └── *_test.go                   # Testes unitários e de integração
+│   │   ├── internal/
+│   │   │   ├── config/paths.go             # Caminhos assinador.jar / assinador.pid
+│   │   │   ├── jar/manager.go              # Find() — descoberta e auto-download do assinador.jar
+│   │   │   └── server/                     # manager.go (PID/health), client.go (HTTP), wait.go
+│   │   ├── main.go
+│   │   └── go.mod
+│   ├── simulador/                          # CLI Go (Cobra) — simulador.jar (validador FHIR externo)
+│   │   ├── cmd/                            # root, version, start, stop, status
+│   │   ├── internal/
+│   │   │   ├── config/paths.go             # Caminhos simulador.{jar,pid,version}
+│   │   │   ├── simjar/manager.go           # Find(source) — download dinâmico + cache por versão
+│   │   │   └── simserver/                  # manager.go (PID gravado pelo CLI, /actuator/health, IsPortFree), wait.go
+│   │   ├── main.go
+│   │   └── go.mod
+│   ├── shared/                             # Módulo Go reusado pelos dois CLIs
+│   │   ├── config/paths.go                 # HubSaudeDir, JREDir, ReleaseURL
+│   │   ├── release/release.go              # Fetch() + struct File (jre + jar + simulador)
+│   │   ├── jre/manager.go                  # JavaPath() — detecção/download do Java 21+
+│   │   ├── process/detach_{unix,windows}.go
+│   │   └── go.mod
+│   └── go.work                             # use ./shared ./assinatura ./simulador
+├── release.json                            # URLs/versões: JRE, assinador.jar e simulador.jar
 └── README.md
 ```
 

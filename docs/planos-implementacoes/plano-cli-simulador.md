@@ -17,7 +17,7 @@ Progresso pela [ordem sugerida](#ordem-sugerida-de-implementação) abaixo:
 | 4 | `simulador/internal/simserver` (HTTP, `/actuator/health`, stop por PID) + testes | ✅ **concluído** |
 | 5 | `simulador/cmd` (`root`, `version`, `start`, `stop`, `status`) + testes | ✅ **concluído** |
 | 6 | CI/CD (`build.yml`, `release.yml`) com binários do `simulador` | ✅ **concluído** |
-| 7 | Documentação (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`) | ⬜ pendente — **próximo** |
+| 7 | Documentação (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`) | ✅ **concluído** |
 
 **O que já existe no repositório (passos 1–2):**
 
@@ -281,7 +281,7 @@ type File struct {
    pelo CLI, `IsPortFree`) + testes.
 5. ✅ **`simulador/cmd`** (`root`, `version`, `start`, `stop`, `status`) + testes.
 6. ✅ **CI/CD** (`build.yml`, `release.yml`) com os binários do `simulador`.
-7. **Documentação** (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`).
+7. ✅ **Documentação** (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`).
 
 ## Mapa US → entregas
 
