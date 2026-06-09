@@ -16,9 +16,10 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Testes unitários (shared + simulador)
+      - name: Testes unitários (shared + assinatura + simulador)
         run: |
           cd projetos/shared && go test ./...
+          cd ../assinatura && go test ./...
           cd ../simulador && go test ./...
 
       - name: Compilar assinatura (3 plataformas)
