@@ -12,10 +12,10 @@ Progresso pela [ordem sugerida](#ordem-sugerida-de-implementação) abaixo:
 |-------|-----------|--------|
 | 1 | Workspace Go + módulo `shared` + rename do `assinatura` | ✅ **concluído** |
 | 2 | `release.json` + `shared/release` estendidos com `simulador` | ✅ **concluído** |
-| 3 | `simulador/internal/simjar` (download dinâmico) + testes | ⬜ pendente — **comece aqui** |
-| 4 | `simulador/internal/simserver` (HTTPS, `/api/info`, `/shutdown`) + testes | ⬜ pendente |
-| 5 | `simulador/cmd` (`root`, `version`, `start`, `stop`, `status`) + testes | ⬜ pendente |
-| 6 | CI/CD (`build.yml`, `release.yml`) com binários do `simulador` | ⬜ pendente |
+| 3 | `simulador/internal/simjar` (download dinâmico) + testes | ✅ **concluído** |
+| 4 | `simulador/internal/simserver` (HTTP, `/actuator/health`, stop por PID) + testes | ✅ **concluído** |
+| 5 | `simulador/cmd` (`root`, `version`, `start`, `stop`, `status`) + testes | ✅ **concluído** |
+| 6 | CI/CD (`build.yml`, `release.yml`) com binários do `simulador` | ⬜ pendente — **próximo** |
 | 7 | Documentação (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`) | ⬜ pendente |
 
 **O que já existe no repositório (passos 1–2):**
@@ -41,10 +41,13 @@ integração do `assinatura` compila com `-tags integration`. Nenhuma mudança d
 módulo, ex.: `go -C projetos/shared test ./...`, `go -C projetos/assinatura build ./...`. O
 `go.work` é descoberto automaticamente a partir de `projetos/`.
 
-**Pendência herdada para o passo 3:** confirmar o **owner/repo real** da URL do `simulador.jar`
-no `release.json` — hoje aponta para `danilo-sgalvao/runner` por consistência, mas a
-especificação trata o Simulador como artefato **externo** (possivelmente outro repositório da
-disciplina). Ajustar a URL quando confirmado.
+**Pendência herdada para o passo 3 (refinada após análise do jar):** o artefato real é o
+**`hubsaude-validador-api`** (validador FHIR da SES-GO), distribuído como
+`hubsaude-validador-api-<versão>-exec.jar` — **não** `simulador.jar`. A `url`/`version` em
+`release.json` (hoje `danilo-sgalvao/runner` + `simulador.jar`, `version: 0.0.0`) precisam
+apontar para o **owner/repo externo** e para o nome de arquivo real. Isso é correção de **dados**
+no `release.json`; a struct `Simulador{URL, Version}` em `shared/release` (passo 2) permanece
+inalterada. O nome do cache local pode continuar `~/.hubsaude/simulador.jar` (escolha do CLI).
 
 ## Objetivo
 
@@ -58,25 +61,47 @@ completo: ambos os CLIs publicados no GitHub Releases com checksums e assinatura
 Diferente do `assinador.jar` (construído neste repositório), o **Simulador do HubSaúde é um
 artefato pronto**, baixado do GitHub Releases da disciplina. O CLI não controla o código Java
 do Simulador. Isso gera diferenças estruturais em relação ao `assinatura` que **não podem ser
-copiadas cegamente**:
+copiadas cegamente**.
 
-| Aspecto | `assinatura` (assinador.jar) | `simulador` (simulador.jar) |
+### Contrato confirmado do jar externo (v0.1.10)
+
+O artefato é o **`hubsaude-validador-api`** — um **validador de recursos FHIR** da SES-GO
+(`br.gov.go.saude.hubsaude.validador.api`), Spring Boot 4.0.6 sobre Tomcat 11, Java 21. Fat-jar
+(~177 MB) que embute 7 pacotes FHIR (`.tgz`). O contrato abaixo foi **verificado** sobre
+`hubsaude-validador-api-0.1.10-exec.jar`, estática (`javap`) e ao vivo (servidor de pé), e
+**corrige** as suposições iniciais deste plano (que assumiam 8443/HTTPS, `/api/info`, `/shutdown`):
+
+| Aspecto | `assinatura` (assinador.jar) | `simulador` (hubsaude-validador-api) |
 |---------|------------------------------|------------------------------|
 | Origem do JAR | construído no repo (`mvn package`) | **externo**, só baixado |
-| Porta padrão | 8080 (HTTP) | **8443 (HTTPS**, provável cert self-signed) |
+| Protocolo / porta | HTTP 8080 | **HTTP 8080** (sem TLS; `--server.port=N` p/ trocar) |
 | Quem grava o PID file | o **Java** (`ServerStartupHandler`) | o **próprio CLI Go**, ao spawnar |
-| Parar | `proc.Kill()` pelo PID | endpoint HTTP **`POST /shutdown`** |
-| Status / readiness | `GET /health` | **`GET /api/info`** |
-| Checar porta antes de subir | (não faz) | **verifica 8443 livre antes de iniciar** |
+| Parar | `proc.Kill()` pelo PID | **`proc.Kill()` pelo PID** (não há `/shutdown`) |
+| Status / readiness | `GET /health` | **`GET /actuator/health/readiness`** (Spring Actuator) |
+| Checar porta antes de subir | (não faz) | **verifica a porta livre antes de iniciar** |
+
+Endpoints reais (confirmados):
+
+- Negócio: `POST /fhir/$validate` (consumes/produces `application/fhir+json`; resposta
+  `OperationOutcome` FHIR), `GET /fhir/profiles` (json), `GET /fhir/terminology-status?url=` (json).
+- Actuator (exposição `health,info,prometheus`): `GET /actuator/health`
+  (`{"status":"UP","groups":["liveness","readiness"]}`), `/actuator/health/liveness`,
+  `/actuator/health/readiness`, `/actuator/info` (`{}`), `/actuator/prometheus`.
+  **`POST /actuator/shutdown` → 404** (não exposto).
+- Arg opcional para trocar os pacotes FHIR: `--packages=<lista>` (ou `-p=<lista>`).
 
 Consequências de projeto:
 
-- O cliente HTTP do `simulador` precisa falar **HTTPS** com um `http.Client` que tolere
-  certificado self-signed (`tls.Config{InsecureSkipVerify: true}` — aceitável por ser
-  `localhost`; documentar a decisão).
-- Como o jar externo não escreve `~/.hubsaude/simulador.pid`, o **CLI Go grava o registro**
-  `{pid, port}` logo após `cmd.Start()`. O comando `stop` prefere `POST /shutdown`; o PID fica
-  como *fallback* para encerramento forçado se o endpoint não responder.
+- O cliente do `simulador` fala **HTTP comum** — `http.Client` padrão, **sem**
+  `InsecureSkipVerify` (não há TLS). Readiness/health checados via `/actuator/health/readiness`.
+- **Não há endpoint de shutdown.** O `stop` encerra **por `proc.Kill()` no PID registrado**;
+  como o jar externo não escreve `~/.hubsaude/simulador.pid`, o **CLI Go grava o registro**
+  `{pid, port}` logo após `cmd.Start()`.
+- **Cold start ~20s** (carrega os 7 pacotes FHIR embutidos); a primeira chamada `$validate`
+  dispara warm-up lazy adicional do HAPI. O `WaitUntilReady` precisa de **timeout generoso
+  (≥60s)**, não os 30s do `assinatura`.
+- **Colisão de porta:** o padrão 8080 é o mesmo do `assinador.jar`. Escolher outra default para
+  o `simulador` (ex.: **8081**) ou documentar que não devem rodar juntos na mesma porta.
 
 ---
 
@@ -111,7 +136,7 @@ projetos/
     ├── cmd/      root.go, version.go, start.go, stop.go, status.go
     └── internal/
         ├── simjar/   manager.go      # Find()/download do simulador.jar via release.json
-        └── simserver/ manager.go, client.go, wait.go   # PID/registro, /api/info, /shutdown (HTTPS)
+        └── simserver/ manager.go, client.go, wait.go   # PID/registro, /actuator/health, stop por PID (HTTP)
 ```
 
 > **Nota sobre o module path.** `shared` não pode ser `.../runner/shared` enquanto o
@@ -184,29 +209,31 @@ type File struct {
 4. Flag **`--source <url>`** (critério de US-03.4) sobrepõe a URL do `release.json`.
 5. Offline + sem cache → erro claro (não há fallback de sistema, igual ao assinador.jar).
 
-### 4. `simulador/internal/simserver/` — ciclo de vida via HTTPS
+### 4. `simulador/internal/simserver/` — ciclo de vida via HTTP
 
 - `manager.go`: `ProcessInfo{PID, Port}`, leitura/escrita/limpeza de
   `~/.hubsaude/simulador.pid` (o **CLI** grava, não o jar). `Info(port)` faz
-  `GET https://localhost:<port>/api/info`; `Shutdown(port)` faz `POST .../shutdown`. Cliente
-  HTTPS com `InsecureSkipVerify` para o cert self-signed local.
-- `wait.go`: `WaitUntilReady(port, timeout)` sondando `/api/info` (análogo ao `WaitUntilReady`
-  do assinatura, trocando `/health`→`/api/info` e HTTP→HTTPS).
+  `GET http://localhost:<port>/actuator/info` (e/ou `/actuator/health`); `Stop` encerra por
+  **`proc.Kill()`** no PID registrado (não há `/shutdown`). Cliente **HTTP comum**, sem TLS.
+- `wait.go`: `WaitUntilReady(port, timeout)` sondando `GET /actuator/health/readiness` até
+  `status: UP` (análogo ao `WaitUntilReady` do assinatura, trocando `/health` →
+  `/actuator/health/readiness`). **Timeout ≥60s** por causa do cold start (~20s + warm-up lazy).
 - `portfree.go` (ou helper no manager): `IsPortFree(port)` via `net.Listen("tcp", :port)` —
-  usado pelo `start` para checar 8443 antes de subir (critério de US-03.1/US-03).
+  usado pelo `start` para checar a porta antes de subir (critério de US-03.1/US-03).
 
 ### 5. `simulador/cmd/` — comandos (US-03.1, US-03.2, US-03.3)
 
 - `root.go` / `version.go`: espelham o `assinatura` (`Use: "simulador"`, mesmo padrão de
   `version`).
-- `start.go` (US-03.1): checa porta 8443 livre → `simjar.Find()` → `jre.JavaPath()` →
-  `process.Detach` + `cmd.Start()` → **grava PID/porta** → `simserver.WaitUntilReady`. Flag
-  `--port` (default 8443).
-- `stop.go` (US-03.2): tenta `simserver.Shutdown(port)`; se não responder, *fallback* para
-  `proc.Kill()` pelo PID registrado; limpa o registro. Flag `--port`.
-- `status.go` (US-03.2, **novo, sem equivalente no assinatura**): consulta `/api/info`; imprime
-  "em execução" + dados retornados, ou "não está em execução". Reconcilia com o pid file
-  (registro órfão → reporta parado e limpa).
+- `start.go` (US-03.1): checa porta livre → `simjar.Find()` → `jre.JavaPath()` →
+  `process.Detach` + `cmd.Start()` (passando `--server.port=<porta>` ao jar) → **grava PID/porta**
+  → `simserver.WaitUntilReady` (timeout ≥60s). Flag `--port` (default **8081**, para não colidir
+  com o `assinador.jar` em 8080).
+- `stop.go` (US-03.2): encerra por **`proc.Kill()`** no PID registrado (não há endpoint
+  `/shutdown`); limpa o registro. Flag `--port`.
+- `status.go` (US-03.2, **novo, sem equivalente no assinatura**): consulta
+  `/actuator/health` (e/ou `/actuator/info`); imprime "em execução" + status retornado, ou
+  "não está em execução". Reconcilia com o pid file (registro órfão → reporta parado e limpa).
 
 ### 6. CI/CD — `build.yml` e `release.yml` (US-03.3, US-05.3)
 
@@ -225,9 +252,10 @@ type File struct {
   reapontando imports.
 - `simulador/internal/simjar/manager_test.go`: download fresh, cache válido, cache
   desatualizado, `--source`, offline sem cache.
-- `simulador/internal/simserver/*_test.go`: `Info`/`Shutdown`/`WaitUntilReady` contra um
-  `httptest.NewTLSServer` expondo `/api/info` e `/shutdown`; `IsPortFree` com porta ocupada.
-- `simulador/cmd/*_test.go`: `start` aborta com porta ocupada; `stop` chama `/shutdown`;
+- `simulador/internal/simserver/*_test.go`: `Info`/`WaitUntilReady` contra um
+  `httptest.NewServer` (HTTP comum) expondo `/actuator/health/readiness` e `/actuator/info`;
+  `IsPortFree` com porta ocupada.
+- `simulador/cmd/*_test.go`: `start` aborta com porta ocupada; `stop` encerra o PID registrado;
   `status` formata execução vs. parado. Usar `var` injetáveis / `PidFilePath` sobrescrevível
   (mesmo padrão de `internal/server` do assinatura) e `HOME` apontando para tempdir.
 
@@ -236,7 +264,7 @@ type File struct {
 - `CLAUDE.md`: novo subprojeto `projetos/simulador`; seção de layout do workspace/módulo
   compartilhado; tabela de comandos `start`/`stop`/`status`; remover o `simulador` de "What Is
   Not Yet Implemented".
-- `README.md`: instruções de uso do `simulador` (incl. `~/.hubsaude/simulador.*` e porta 8443).
+- `README.md`: instruções de uso do `simulador` (incl. `~/.hubsaude/simulador.*` e porta 8081).
 - `docs/CONCLUSAO-SPRINT4.md`: registrar entrega e decisões (espelha as conclusões anteriores).
 
 ---
@@ -247,10 +275,10 @@ type File struct {
    mover `config`/`release`/`jre`/`process`, renomear o módulo do `assinatura` e reapontar
    imports. Rodar a suíte inteira do `assinatura` — tem de continuar 100% verde antes de seguir.
 2. ✅ **`release.json` + `shared/release` estendidos** com a seção `simulador`.
-3. **`simulador/internal/simjar`** (download dinâmico) + testes. ← **próximo**
-4. **`simulador/internal/simserver`** (HTTPS, `/api/info`, `/shutdown`, PID gravado pelo CLI,
-   `IsPortFree`) + testes.
-5. **`simulador/cmd`** (`root`, `version`, `start`, `stop`, `status`) + testes.
+3. ✅ **`simulador/internal/simjar`** (download dinâmico) + testes.
+4. ✅ **`simulador/internal/simserver`** (HTTP, `/actuator/health/readiness`, stop por PID gravado
+   pelo CLI, `IsPortFree`) + testes.
+5. ✅ **`simulador/cmd`** (`root`, `version`, `start`, `stop`, `status`) + testes.
 6. **CI/CD** (`build.yml`, `release.yml`) com os binários do `simulador`.
 7. **Documentação** (`CLAUDE.md`, `README.md`, `CONCLUSAO-SPRINT4.md`).
 
@@ -259,20 +287,25 @@ type File struct {
 | US | Entrega principal |
 |----|-------------------|
 | US-03.3 | Passos 1 e 5 — estrutura do CLI espelhando o `assinatura` + comandos `start`/`stop`/`status` |
-| US-03.1 | `start` (checa 8443, baixa jar se preciso, sobe em background, feedback) |
-| US-03.2 | `stop` (`/shutdown`) + `status` (`/api/info`) + registro PID/porta |
+| US-03.1 | `start` (checa porta livre, baixa jar se preciso, sobe em background, feedback) |
+| US-03.2 | `stop` (kill por PID) + `status` (`/actuator/health`) + registro PID/porta |
 | US-03.4 | `simjar.Find()` + seção `simulador` no `release.json` + `--source` + cache por versão |
 | US-05.3 | Passo 6 — checksums + Cosign para os binários do `simulador` |
 
 ## Riscos e pontos de atenção
 
-- **Cert self-signed em 8443:** o cliente HTTPS precisa de `InsecureSkipVerify` para `localhost`.
-  Documentar como decisão consciente (escopo localhost). Se o Simulador exigir mTLS, revisar.
+- **Cold start ~20s + warm-up lazy:** `WaitUntilReady` precisa de timeout ≥60s. A primeira
+  chamada `$validate` ainda dispara carregamento adicional do HAPI — o `start` pode reportar
+  "pronto" (readiness UP) antes desse warm-up; aceitável, pois é o contrato do próprio serviço.
 - **PID gravado pelo CLI, não pelo Java:** se o processo morrer fora do CLI, o pid file fica
-  órfão — `status`/`stop` precisam reconciliar via `/api/info` e limpar o registro.
-- **Contrato de `/api/info` e `/shutdown`:** dependem do Simulador real. Confirmar o formato da
-  resposta de `/api/info` e o método/verbo de `/shutdown` contra a versão publicada antes de
-  fixar os parsers.
+  órfão — `status`/`stop` precisam reconciliar via `/actuator/health` e limpar o registro.
+- **Sem endpoint de shutdown:** `stop` depende de `proc.Kill()` no PID. Se o PID estiver órfão/
+  reciclado, validar via `/actuator/health` antes de matar para não encerrar processo alheio.
+- **Colisão de porta com o `assinador.jar` (ambos 8080):** default do `simulador` em 8081 e/ou
+  checagem de porta livre no `start` antes de subir.
+- **Contrato preso à v0.1.10:** endpoints e exposição do actuator confirmados sobre
+  `hubsaude-validador-api-0.1.10-exec.jar`. Reconfirmar se a versão de release mudar (sobretudo
+  se `shutdown` passar a ser exposto ou a porta default mudar).
 - **Renomeação do módulo do `assinatura`:** mecânica, porém ampla — é o passo de maior risco de
   regressão. Isolar no passo 1 e validar com a suíte completa antes de avançar.
 - **`go.work` no CI:** garantir builds determinísticos via `replace` (e `GOWORK=off` se preciso),
