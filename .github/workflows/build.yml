@@ -14,16 +14,26 @@ jobs:
       - name: Instalar Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.26'
 
-      - name: Compilar para Windows
-        run: cd projetos/assinatura && GOOS=windows GOARCH=amd64 go build -o ../../assinatura-windows-amd64.exe .
+      - name: Testes unitários (shared + simulador)
+        run: |
+          cd projetos/shared && go test ./...
+          cd ../simulador && go test ./...
 
-      - name: Compilar para Linux
-        run: cd projetos/assinatura && GOOS=linux GOARCH=amd64 go build -o ../../assinatura-linux-amd64 .
+      - name: Compilar assinatura (3 plataformas)
+        run: |
+          cd projetos/assinatura
+          GOOS=windows GOARCH=amd64 go build -o ../../assinatura-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -o ../../assinatura-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -o ../../assinatura-darwin-amd64 .
 
-      - name: Compilar para macOS
-        run: cd projetos/assinatura && GOOS=darwin GOARCH=amd64 go build -o ../../assinatura-darwin-amd64 .
+      - name: Compilar simulador (3 plataformas)
+        run: |
+          cd projetos/simulador
+          GOOS=windows GOARCH=amd64 go build -o ../../simulador-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -o ../../simulador-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -o ../../simulador-darwin-amd64 .
 
       - name: Salvar artefatos
         uses: actions/upload-artifact@v4
@@ -33,6 +43,9 @@ jobs:
             assinatura-windows-amd64.exe
             assinatura-linux-amd64
             assinatura-darwin-amd64
+            simulador-windows-amd64.exe
+            simulador-linux-amd64
+            simulador-darwin-amd64
 
   integration-test:
     runs-on: ubuntu-latest
@@ -42,7 +55,7 @@ jobs:
       - name: Instalar Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.26'
 
       - name: Instalar Java
         uses: actions/setup-java@v4
