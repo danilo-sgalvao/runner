@@ -7,5 +7,9 @@
   },
   "jar": {
     "url": "https://github.com/danilo-sgalvao/runner/releases/latest/download/assinador.jar"
+  },
+  "simulador": {
+    "version": "0.0.0",
+    "url": "https://github.com/danilo-sgalvao/runner/releases/latest/download/simulador.jar"
   }
 }

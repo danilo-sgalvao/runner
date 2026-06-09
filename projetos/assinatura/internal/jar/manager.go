@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/danilo-sgalvao/runner/internal/config"
-	"github.com/danilo-sgalvao/runner/internal/release"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/config"
+	"github.com/danilo-sgalvao/runner/shared/release"
 )
 
 // Find localiza o assinador.jar.

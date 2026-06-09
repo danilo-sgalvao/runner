@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/danilo-sgalvao/runner/internal/config"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/config"
 )
 
 // ProcessInfo descreve a instância do assinador.jar em execução.

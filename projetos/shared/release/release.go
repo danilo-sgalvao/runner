@@ -1,6 +1,7 @@
 // Package release centraliza a leitura do metadado release.json (informações do
-// JRE por plataforma e a URL do assinador.jar), servindo de fonte única para os
-// pacotes jar e jre.
+// JRE por plataforma e a URL dos jars), servindo de fonte única compartilhada
+// pelos CLIs assinatura e simulador (pacotes jar/simjar) e pelo provisionamento
+// do JRE.
 package release
 
 import (
@@ -9,13 +10,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/danilo-sgalvao/runner/internal/config"
+	"github.com/danilo-sgalvao/runner/shared/config"
 )
 
 var client = &http.Client{Timeout: 15 * time.Second}
 
-// File espelha o release.json do repositório: metadados do JRE por plataforma
-// e a URL do assinador.jar.
+// File espelha o release.json do repositório: metadados do JRE por plataforma,
+// a URL do assinador.jar e a URL/versão do simulador.jar.
 type File struct {
 	JRE struct {
 		Version    string `json:"version"`
@@ -26,6 +27,13 @@ type File struct {
 	Jar struct {
 		URL string `json:"url"`
 	} `json:"jar"`
+	// Simulador descreve o simulador.jar externo: a Version controla a
+	// invalidação do cache local (US-03.4); só rebaixa se a versão remota
+	// diferir da gravada em ~/.hubsaude/simulador.version.
+	Simulador struct {
+		URL     string `json:"url"`
+		Version string `json:"version"`
+	} `json:"simulador"`
 }
 
 // Fetch baixa e desserializa o release.json a partir de config.ReleaseURL.

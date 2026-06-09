@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/danilo-sgalvao/runner/internal/jar"
-	"github.com/danilo-sgalvao/runner/internal/jre"
-	"github.com/danilo-sgalvao/runner/internal/server"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/jar"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/server"
+	"github.com/danilo-sgalvao/runner/shared/jre"
 )
 
 // runViaServer tenta atender a operação pelo servidor HTTP em execução.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/danilo-sgalvao/runner/internal/jre"
+	"github.com/danilo-sgalvao/runner/shared/jre"
 )
 
 // jarDeIntegracao resolve o caminho do assinador.jar para testes.

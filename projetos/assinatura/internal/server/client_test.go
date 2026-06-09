@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/danilo-sgalvao/runner/internal/server"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/server"
 )
 
 func TestSign_sucesso(t *testing.T) {

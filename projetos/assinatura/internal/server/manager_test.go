@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/danilo-sgalvao/runner/internal/server"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/server"
 )
 
 func TestReadProcessInfo_arquivoValido(t *testing.T) {

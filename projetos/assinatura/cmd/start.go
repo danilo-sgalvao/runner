@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/danilo-sgalvao/runner/internal/jar"
-	"github.com/danilo-sgalvao/runner/internal/jre"
-	"github.com/danilo-sgalvao/runner/internal/process"
-	"github.com/danilo-sgalvao/runner/internal/server"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/jar"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/server"
+	"github.com/danilo-sgalvao/runner/shared/jre"
+	"github.com/danilo-sgalvao/runner/shared/process"
 	"github.com/spf13/cobra"
 )
 

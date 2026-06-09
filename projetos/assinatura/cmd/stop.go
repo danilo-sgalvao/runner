@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/danilo-sgalvao/runner/internal/server"
+	"github.com/danilo-sgalvao/runner/assinatura/internal/server"
 	"github.com/spf13/cobra"
 )
 

@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danilo-sgalvao/runner/internal/config"
-	"github.com/danilo-sgalvao/runner/internal/release"
+	"github.com/danilo-sgalvao/runner/shared/config"
+	"github.com/danilo-sgalvao/runner/shared/release"
 )
 
 var downloadClient = &http.Client{Timeout: 10 * time.Minute}
 
-// releaseFile é um alias do tipo compartilhado em internal/release.
+// releaseFile é um alias do tipo compartilhado em shared/release.
 type releaseFile = release.File
 
 var javaVersionRe = regexp.MustCompile(`version "(\d+)`)
