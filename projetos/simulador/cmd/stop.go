@@ -15,9 +15,9 @@ var stopCmd = &cobra.Command{
 	Short: "Encerra o Simulador em execução",
 	Long: `Encerra o Simulador do HubSaúde que está rodando em background.
 
-Lê o PID registrado em ~/.hubsaude/simulador.pid e encerra o processo. O
-validador não expõe um endpoint de shutdown, então o encerramento é feito pelo
-PID registrado.
+Lê o PID registrado em ~/.hubsaude/simulador.pid e encerra o processo pelo PID.
+(O jar expõe POST /shutdown para encerramento gracioso, mas o stop usa o PID por
+ser independente do estado HTTP do servidor.)
 
 Exemplos:
   simulador stop

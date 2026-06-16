@@ -27,8 +27,8 @@ Verifica se a porta está livre, obtém o simulador.jar (baixando do repositóri
 da disciplina quando ausente), garante um Java 21+ disponível e sobe o processo.
 O PID e a porta são registrados em ~/.hubsaude/simulador.pid.
 
-O primeiro start pode levar cerca de um minuto: o validador carrega os pacotes
-FHIR embutidos antes de aceitar requisições.
+O simulador sobe em poucos segundos; o primeiro start pode demorar um pouco mais
+apenas por causa do download/preparo do JRE.
 
 Exemplos:
   simulador start
@@ -72,8 +72,8 @@ Exemplos:
 			return fmt.Errorf("simulador iniciado (PID %d) mas falhou ao registrar o processo: %w", javaCmd.Process.Pid, err)
 		}
 
-		fmt.Printf("Aguardando o simulador ficar pronto na porta %d (pode levar ~1 min no primeiro start)...\n", startPort)
-		if err := simserver.WaitUntilReady(startPort, 90*time.Second); err != nil {
+		fmt.Printf("Aguardando o simulador ficar pronto na porta %d (alguns segundos; mais no primeiro start por causa do JRE)...\n", startPort)
+		if err := simserver.WaitUntilReady(startPort, 60*time.Second); err != nil {
 			return fmt.Errorf("o simulador não ficou pronto na porta %d: %w", startPort, err)
 		}
 

@@ -6,9 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// defaultPort é a porta padrão do Simulador. Diferente do assinador.jar (8080),
-// usa 8081 para que ambos possam coexistir na mesma máquina sem colisão.
-const defaultPort = 8081
+// defaultPort é a porta padrão do Simulador: 8443, a própria porta/`server.base-url`
+// do hubsaude-simulador.jar (HTTPS). Mantê-la em 8443 deixa os documentos de
+// discovery (que emitem https://localhost:8443) coerentes e ainda evita colisão com
+// o assinador.jar (8080).
+const defaultPort = 8443
 
 var rootCmd = &cobra.Command{
 	Use:   "simulador",
