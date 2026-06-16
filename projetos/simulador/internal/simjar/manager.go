@@ -8,6 +8,8 @@
 package simjar
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +46,7 @@ func Find(sourceURL string) (string, error) {
 
 	if sourceURL != "" {
 		fmt.Println("Baixando simulador.jar de --source...")
-		if err := download(sourceURL, ""); err != nil {
+		if err := download(sourceURL, "", ""); err != nil {
 			return "", fmt.Errorf("falha ao baixar simulador.jar de %s: %w", sourceURL, err)
 		}
 		return config.JarPath(), nil
@@ -72,7 +74,7 @@ func Find(sourceURL string) (string, error) {
 	}
 
 	fmt.Printf("Baixando simulador.jar (versão %s)...\n", cfg.Simulador.Version)
-	if err := download(cfg.Simulador.URL, cfg.Simulador.Version); err != nil {
+	if err := download(cfg.Simulador.URL, cfg.Simulador.Version, cfg.Simulador.SHA256); err != nil {
 		// Falha no download mas com cache presente: degrada para o cache.
 		if fileExists(local) {
 			fmt.Println("Aviso: falha ao atualizar; usando a cópia local existente.")
@@ -98,8 +100,9 @@ func localVersion() string {
 }
 
 // download baixa o jar de url para ~/.hubsaude/simulador.jar. Se version não for
-// vazio, grava também o marcador de versão para o cache de US-03.4.
-func download(url, version string) error {
+// vazio, grava também o marcador de versão para o cache de US-03.4. Se
+// sha256Expected não for vazio, verifica a integridade do download.
+func download(url, version, sha256Expected string) error {
 	resp, err := http.Get(url) //nolint:noctx
 	if err != nil {
 		return err
@@ -121,7 +124,8 @@ func download(url, version string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	h := sha256.New()
+	if _, err := io.Copy(out, io.TeeReader(resp.Body, h)); err != nil {
 		out.Close()
 		os.Remove(tmp)
 		return err
@@ -130,6 +134,15 @@ func download(url, version string) error {
 		os.Remove(tmp)
 		return err
 	}
+
+	if sha256Expected != "" {
+		got := hex.EncodeToString(h.Sum(nil))
+		if got != sha256Expected {
+			os.Remove(tmp)
+			return fmt.Errorf("checksum inválido: esperado %s, obtido %s", sha256Expected, got)
+		}
+	}
+
 	if err := os.Rename(tmp, dest); err != nil {
 		os.Remove(tmp)
 		return err

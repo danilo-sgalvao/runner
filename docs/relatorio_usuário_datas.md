@@ -180,3 +180,40 @@ Implementação completa da Sprint 3 do Sistema Runner: modo servidor HTTP, gere
 - Java: 34/34 ✅ (29 anteriores + 5 novos de PKCS#11)
 - Go cmd: 28/28 ✅ (17 anteriores + 6 start + 5 stop)
 - Go server: 7/7 ✅ (4 manager + 3 client)
+
+# 16/06/26 -- LUIZ AUGUSTO
+
+Implementação da verificação de integridade (checksum SHA-256) do download do `simulador.jar` (US-03.4 — único critério pendente da Sprint 4).
+
+A pendência era que o `simjar.Find` baixava o jar de forma atômica (arquivo temporário + rename), mas não validava a integridade do conteúdo baixado. O `release.json` não expunha hash para o `simulador.jar`, então a verificação havia sido deixada como ponto de extensão.
+
+**O que foi feito:**
+
+- **`shared/release/release.go`**: adicionado o campo `SHA256 string \`json:"sha256"\`` à struct `Simulador`. Campo opcional: quando vazio, nenhuma verificação é feita, preservando compatibilidade com o estado atual do `release.json`.
+
+- **`simulador/internal/simjar/manager.go`**: a função `download` passou a receber um terceiro parâmetro `sha256Expected string`. Durante a cópia do body HTTP, usa `io.TeeReader` para calcular o hash SHA-256 simultaneamente à escrita no arquivo temporário. Se `sha256Expected` não for vazio, compara o hash calculado com o esperado antes de renomear o `.tmp` para o destino final — em caso de divergência, remove o `.tmp` e retorna erro, sem deixar jar corrompido no cache.
+
+- **`release.json`**: adicionado `"sha256": ""` à seção `simulador` (vazio = sem verificação até o release oficial do `hubsaude-simulador` publicar o hash).
+
+- **Testes** (`simjar/manager_test.go`):
+  - `TestFind_ChecksumValido`: servidor HTTP de teste serve bytes conhecidos; release stub fornece o SHA-256 correto → download e cache bem-sucedidos.
+  - `TestFind_ChecksumInvalido`: mesmo servidor; release stub fornece hash errado → erro retornado e nenhum arquivo gravado no destino.
+
+**Resultado dos testes:**
+- Go simjar: 8/8 ✅ (6 anteriores + 2 novos de checksum)
+
+# 16/06/26 -- LUIZ AUGUSTO
+
+Correção do versionamento e do pipeline de release do Sistema Runner.
+
+Foram identificados e corrigidos três problemas no CI/CD que comprometiam a distribuição correta dos binários.
+
+**O que foi feito:**
+
+- **Versão dinâmica nos CLIs (`cmd/version.go`)**: a versão `v0.1.0` estava hardcoded nos dois CLIs (`assinatura` e `simulador`). Substituída por uma variável `Version = "dev"` injetada em tempo de build via `-ldflags`. Builds locais exibem `dev`; builds de release recebem a tag da versão automaticamente.
+
+- **`release.yml` — testes antes do build**: o workflow ia direto para compilação sem rodar os testes. Adicionado step de `go test ./...` nos três módulos Go (`shared`, `assinatura`, `simulador`) antes de qualquer compilação, evitando publicar um release com código defeituoso.
+
+- **`release.yml` — build e publicação do `assinador.jar`**: o workflow não fazia o build Maven nem publicava o `assinador.jar` no GitHub Releases. Porém o `release.json` aponta para `releases/latest/download/assinador.jar`, então o auto-download em qualquer máquina falhava com 404. Adicionados: step `mvn package`, cópia do jar para a raiz, inclusão no `sha256sum`, assinatura com Cosign e publicação junto com os binários Go.
+
+- **`release.yml` — versão injetada nos binários**: os comandos `go build` passaram a usar `-ldflags "-X '.../cmd.Version=${VERSION}'"` para os 6 binários (assinatura e simulador, 3 plataformas cada). A tag `${{ github.ref_name }}` é exposta como variável de ambiente `VERSION` para evitar problemas de escape no shell.

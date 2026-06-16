@@ -1,6 +1,8 @@
 package simjar
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,6 +39,17 @@ func releaseWith(url, version string) *release.File {
 	f.Simulador.URL = url
 	f.Simulador.Version = version
 	return f
+}
+
+func releaseWithChecksum(url, version, checksum string) *release.File {
+	f := releaseWith(url, version)
+	f.Simulador.SHA256 = checksum
+	return f
+}
+
+func sha256hex(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
 }
 
 // jarServer serve bytes fixos como se fosse o jar.
@@ -156,6 +169,35 @@ func TestFind_OfflineSemCache(t *testing.T) {
 	_, err := Find("")
 	if err == nil {
 		t.Fatal("esperava erro quando offline e sem cache")
+	}
+}
+
+func TestFind_ChecksumValido(t *testing.T) {
+	isolateHome(t)
+	const body = "jar-com-checksum"
+	srv := jarServer(t, body)
+	stubRelease(t, releaseWithChecksum(srv.URL, "1.0.0", sha256hex(body)), nil)
+
+	path, err := Find("")
+	if err != nil {
+		t.Fatalf("não esperava erro com checksum válido: %v", err)
+	}
+	if got := readFile(t, path); got != body {
+		t.Errorf("conteúdo do jar = %q, esperava %q", got, body)
+	}
+}
+
+func TestFind_ChecksumInvalido(t *testing.T) {
+	isolateHome(t)
+	srv := jarServer(t, "jar-corrompido")
+	stubRelease(t, releaseWithChecksum(srv.URL, "1.0.0", "sha256-errado"), nil)
+
+	_, err := Find("")
+	if err == nil {
+		t.Fatal("esperava erro quando checksum não bate")
+	}
+	if fileExists(config.JarPath()) {
+		t.Error("arquivo temporário não deve permanecer após checksum inválido")
 	}
 }
 

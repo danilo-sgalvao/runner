@@ -20,43 +20,72 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Compilar binários
+      - name: Instalar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Testes Go
         run: |
+          cd projetos/shared && go test ./...
+          cd ../assinatura && go test ./...
+          cd ../simulador && go test ./...
+
+      - name: Build do assinador.jar
+        run: cd projetos/assinador-java && mvn package -q
+
+      - name: Compilar binários
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          LDFLAGS_ASSINATURA="-X 'github.com/danilo-sgalvao/runner/assinatura/cmd.Version=${VERSION}'"
+          LDFLAGS_SIMULADOR="-X 'github.com/danilo-sgalvao/runner/simulador/cmd.Version=${VERSION}'"
           cd projetos/assinatura
-          GOOS=windows GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-windows-amd64.exe .
-          GOOS=linux   GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-linux-amd64 .
-          GOOS=darwin  GOARCH=amd64 go build -o ../../assinatura-${{ github.ref_name }}-darwin-amd64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS_ASSINATURA}" -o ../../assinatura-${VERSION}-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS_ASSINATURA}" -o ../../assinatura-${VERSION}-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "${LDFLAGS_ASSINATURA}" -o ../../assinatura-${VERSION}-darwin-amd64 .
           cd ../simulador
-          GOOS=windows GOARCH=amd64 go build -o ../../simulador-${{ github.ref_name }}-windows-amd64.exe .
-          GOOS=linux   GOARCH=amd64 go build -o ../../simulador-${{ github.ref_name }}-linux-amd64 .
-          GOOS=darwin  GOARCH=amd64 go build -o ../../simulador-${{ github.ref_name }}-darwin-amd64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS_SIMULADOR}" -o ../../simulador-${VERSION}-windows-amd64.exe .
+          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS_SIMULADOR}" -o ../../simulador-${VERSION}-linux-amd64 .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "${LDFLAGS_SIMULADOR}" -o ../../simulador-${VERSION}-darwin-amd64 .
+
+      - name: Copiar assinador.jar
+        run: cp projetos/assinador-java/target/assinador.jar assinador.jar
 
       - name: Gerar checksums SHA256
+        env:
+          VERSION: ${{ github.ref_name }}
         run: |
-          sha256sum assinatura-${{ github.ref_name }}-windows-amd64.exe \
-                    assinatura-${{ github.ref_name }}-linux-amd64 \
-                    assinatura-${{ github.ref_name }}-darwin-amd64 \
-                    simulador-${{ github.ref_name }}-windows-amd64.exe \
-                    simulador-${{ github.ref_name }}-linux-amd64 \
-                    simulador-${{ github.ref_name }}-darwin-amd64 > checksums.txt
+          sha256sum assinatura-${VERSION}-windows-amd64.exe \
+                    assinatura-${VERSION}-linux-amd64 \
+                    assinatura-${VERSION}-darwin-amd64 \
+                    simulador-${VERSION}-windows-amd64.exe \
+                    simulador-${VERSION}-linux-amd64 \
+                    simulador-${VERSION}-darwin-amd64 \
+                    assinador.jar > checksums.txt
 
       - name: Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
       - name: Assinar artefatos com Cosign
+        env:
+          VERSION: ${{ github.ref_name }}
         run: |
-          cosign sign-blob --yes assinatura-${{ github.ref_name }}-windows-amd64.exe \
-            --bundle assinatura-${{ github.ref_name }}-windows-amd64.exe.bundle
-          cosign sign-blob --yes assinatura-${{ github.ref_name }}-linux-amd64 \
-            --bundle assinatura-${{ github.ref_name }}-linux-amd64.bundle
-          cosign sign-blob --yes assinatura-${{ github.ref_name }}-darwin-amd64 \
-            --bundle assinatura-${{ github.ref_name }}-darwin-amd64.bundle
-          cosign sign-blob --yes simulador-${{ github.ref_name }}-windows-amd64.exe \
-            --bundle simulador-${{ github.ref_name }}-windows-amd64.exe.bundle
-          cosign sign-blob --yes simulador-${{ github.ref_name }}-linux-amd64 \
-            --bundle simulador-${{ github.ref_name }}-linux-amd64.bundle
-          cosign sign-blob --yes simulador-${{ github.ref_name }}-darwin-amd64 \
-            --bundle simulador-${{ github.ref_name }}-darwin-amd64.bundle
+          cosign sign-blob --yes assinatura-${VERSION}-windows-amd64.exe \
+            --bundle assinatura-${VERSION}-windows-amd64.exe.bundle
+          cosign sign-blob --yes assinatura-${VERSION}-linux-amd64 \
+            --bundle assinatura-${VERSION}-linux-amd64.bundle
+          cosign sign-blob --yes assinatura-${VERSION}-darwin-amd64 \
+            --bundle assinatura-${VERSION}-darwin-amd64.bundle
+          cosign sign-blob --yes simulador-${VERSION}-windows-amd64.exe \
+            --bundle simulador-${VERSION}-windows-amd64.exe.bundle
+          cosign sign-blob --yes simulador-${VERSION}-linux-amd64 \
+            --bundle simulador-${VERSION}-linux-amd64.bundle
+          cosign sign-blob --yes simulador-${VERSION}-darwin-amd64 \
+            --bundle simulador-${VERSION}-darwin-amd64.bundle
+          cosign sign-blob --yes assinador.jar \
+            --bundle assinador.jar.bundle
 
       - name: Publicar no GitHub Releases
         uses: softprops/action-gh-release@v2
@@ -74,4 +103,6 @@ jobs:
             simulador-${{ github.ref_name }}-windows-amd64.exe.bundle
             simulador-${{ github.ref_name }}-linux-amd64.bundle
             simulador-${{ github.ref_name }}-darwin-amd64.bundle
+            assinador.jar
+            assinador.jar.bundle
             checksums.txt

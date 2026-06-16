@@ -29,10 +29,12 @@ type File struct {
 	} `json:"jar"`
 	// Simulador descreve o simulador.jar externo: a Version controla a
 	// invalidação do cache local (US-03.4); só rebaixa se a versão remota
-	// diferir da gravada em ~/.hubsaude/simulador.version.
+	// diferir da gravada em ~/.hubsaude/simulador.version. SHA256 (hex),
+	// quando presente, é verificado após o download.
 	Simulador struct {
 		URL     string `json:"url"`
 		Version string `json:"version"`
+		SHA256  string `json:"sha256"`
 	} `json:"simulador"`
 }
 
