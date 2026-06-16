@@ -1,16 +1,22 @@
-// Package simserver gerencia o ciclo de vida do simulador.jar (validador FHIR
-// hubsaude-validador-api): registro de PID/porta, checagem de readiness/health via
-// Spring Actuator e verificação de porta livre.
+// Package simserver gerencia o ciclo de vida do simulador.jar (hubsaude-simulador
+// — servidor de autorização SMART on FHIR / OAuth2 com mTLS): registro de
+// PID/porta, checagem de readiness/status via GET /api/info e verificação de porta
+// livre.
 //
 // Diferenças em relação ao internal/server do assinatura, ditadas pelo contrato do
-// jar externo (confirmado na v0.1.10):
+// jar externo (hubsaude-simulador, verificado ao vivo em 2026-06-15):
 //   - o registro ~/.hubsaude/simulador.pid é gravado pelo PRÓPRIO CLI (WriteProcessInfo),
 //     pois o jar externo não escreve esse arquivo;
-//   - readiness/health usam os endpoints do Actuator (/actuator/health[...]), não /health;
-//   - não há endpoint de shutdown: o encerramento é por PID (no comando stop).
+//   - o serviço é HTTPS com certificado self-signed (keystore p12 embutido) e
+//     client-auth: want — GETs de probe passam sem certificado de cliente, mas o
+//     cliente Go precisa pular a verificação da cadeia (InsecureSkipVerify);
+//   - readiness/status usam GET /api/info (200 = no ar); não há Spring Actuator
+//     (/actuator/** responde 500, não 404);
+//   - existe POST /shutdown (graceful), mas o comando stop encerra por PID.
 package simserver
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -36,6 +42,17 @@ var dialHost = "localhost"
 
 const httpTimeout = 2 * time.Second
 
+// httpClient fala HTTPS com o simulador. O serviço usa certificado self-signed
+// (keystore p12 embutido) e client-auth: want — não exige certificado de cliente
+// para GETs. Pulamos a verificação da cadeia porque o objetivo é apenas a gerência
+// local de ciclo de vida (probe a localhost), não um canal de dados sensível.
+var httpClient = &http.Client{
+	Timeout: httpTimeout,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	},
+}
+
 func pidFile() string {
 	if PidFilePath != "" {
 		return PidFilePath
@@ -43,8 +60,8 @@ func pidFile() string {
 	return config.PidPath()
 }
 
-func actuatorURL(port int, path string) string {
-	return fmt.Sprintf("http://%s:%d%s", dialHost, port, path)
+func baseURL(port int, path string) string {
+	return fmt.Sprintf("https://%s:%d%s", dialHost, port, path)
 }
 
 // WriteProcessInfo grava o registro {pid, port} em ~/.hubsaude/simulador.pid.
@@ -75,12 +92,11 @@ func ClearProcessInfo() {
 	_ = os.Remove(pidFile())
 }
 
-// IsResponding indica se há um servidor HTTP atendendo na porta (qualquer status).
-// Diferente do UP/DOWN: durante o cold start o /actuator/health responde 503, mas o
-// processo já está vivo — para detectar instância existente, basta responder a HTTP.
+// IsResponding indica se há um servidor atendendo na porta (qualquer status HTTP).
+// Diferente de "no ar": basta completar um round-trip — usado para detectar uma
+// instância já em execução antes de subir outra.
 func IsResponding(port int) bool {
-	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Get(actuatorURL(port, "/actuator/health"))
+	resp, err := httpClient.Get(baseURL(port, "/api/info"))
 	if err != nil {
 		return false
 	}
@@ -88,24 +104,27 @@ func IsResponding(port int) bool {
 	return true
 }
 
-// HealthStatus reflete o agregado de /actuator/health (campo "status": UP/DOWN/...).
-type HealthStatus struct {
-	Status string `json:"status"`
+// Info reflete o corpo de GET /api/info do simulador.
+type Info struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
-// Health consulta /actuator/health e devolve o status agregado do simulador.
-func Health(port int) (*HealthStatus, error) {
-	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Get(actuatorURL(port, "/actuator/health"))
+// Probe consulta GET /api/info; 200 significa simulador no ar.
+func Probe(port int) (*Info, error) {
+	resp, err := httpClient.Get(baseURL(port, "/api/info"))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var h HealthStatus
-	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
-		return nil, fmt.Errorf("resposta de health inválida: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status inesperado %d em /api/info", resp.StatusCode)
 	}
-	return &h, nil
+	var info Info
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("resposta de /api/info inválida: %w", err)
+	}
+	return &info, nil
 }
 
 // IsPortFree informa se a porta TCP pode ser vinculada (livre para iniciar o

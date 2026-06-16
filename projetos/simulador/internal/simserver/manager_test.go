@@ -13,11 +13,13 @@ import (
 	"time"
 )
 
-// serverPort sobe um httptest com o handler dado, aponta dialHost para 127.0.0.1
-// (endereço do httptest) e devolve a porta em que ele escuta.
+// serverPort sobe um httptest HTTPS com o handler dado, aponta dialHost para
+// 127.0.0.1 (endereço do httptest) e devolve a porta em que ele escuta. Usa
+// NewTLSServer porque o simulador real serve HTTPS; o httpClient do pacote pula a
+// verificação do certificado (InsecureSkipVerify), aceitando o cert do httptest.
 func serverPort(t *testing.T, h http.Handler) int {
 	t.Helper()
-	srv := httptest.NewServer(h)
+	srv := httptest.NewTLSServer(h)
 	t.Cleanup(srv.Close)
 
 	orig := dialHost
@@ -39,15 +41,15 @@ func TestProcessInfo_RoundTrip(t *testing.T) {
 	PidFilePath = filepath.Join(t.TempDir(), "simulador.pid")
 	t.Cleanup(func() { PidFilePath = "" })
 
-	if err := WriteProcessInfo(ProcessInfo{PID: 4321, Port: 8081}); err != nil {
+	if err := WriteProcessInfo(ProcessInfo{PID: 4321, Port: 8443}); err != nil {
 		t.Fatalf("WriteProcessInfo: %v", err)
 	}
 	info, err := ReadProcessInfo()
 	if err != nil {
 		t.Fatalf("ReadProcessInfo: %v", err)
 	}
-	if info.PID != 4321 || info.Port != 8081 {
-		t.Errorf("registro = %+v, esperava {4321 8081}", info)
+	if info.PID != 4321 || info.Port != 8443 {
+		t.Errorf("registro = %+v, esperava {4321 8443}", info)
 	}
 
 	ClearProcessInfo()
@@ -57,12 +59,13 @@ func TestProcessInfo_RoundTrip(t *testing.T) {
 }
 
 func TestIsResponding(t *testing.T) {
-	// 503 (DOWN durante cold start) ainda conta como "respondendo".
+	// Qualquer round-trip conta como "respondendo" — mesmo um status != 200
+	// (ex.: /actuator/** no jar real responde 500).
 	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	if !IsResponding(port) {
-		t.Error("esperava IsResponding=true para servidor que responde 503")
+		t.Error("esperava IsResponding=true para servidor que responde (ainda que 500)")
 	}
 
 	if IsResponding(freePort(t)) {
@@ -70,20 +73,20 @@ func TestIsResponding(t *testing.T) {
 	}
 }
 
-func TestHealth(t *testing.T) {
+func TestProbe(t *testing.T) {
 	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/actuator/health" {
+		if r.URL.Path != "/api/info" {
 			t.Errorf("caminho inesperado: %s", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"status":"UP","groups":["liveness","readiness"]}`)
+		fmt.Fprint(w, `{"name":"HubSaúde Simulador","version":"0.0.0-SNAPSHOT"}`)
 	}))
 
-	h, err := Health(port)
+	info, err := Probe(port)
 	if err != nil {
-		t.Fatalf("Health: %v", err)
+		t.Fatalf("Probe: %v", err)
 	}
-	if h.Status != "UP" {
-		t.Errorf("status = %q, esperava UP", h.Status)
+	if info.Name != "HubSaúde Simulador" || info.Version != "0.0.0-SNAPSHOT" {
+		t.Errorf("info = %+v, esperava name/version preenchidos", info)
 	}
 }
 
