@@ -17,9 +17,10 @@ var rootCmd = &cobra.Command{
 	Short: "CLI para gerenciar o ciclo de vida do Simulador do HubSaúde",
 	Long: `Sistema Runner — CLI multiplataforma do HubSaúde.
 
-Inicia, encerra e monitora o Simulador do HubSaúde (validador FHIR) sem
-necessidade de configurar ou instalar o Java manualmente. O simulador.jar é
-obtido automaticamente do repositório da disciplina quando ausente.
+Inicia, encerra e monitora o Simulador do HubSaúde (servidor de autorização
+SMART on FHIR / OAuth2 com mTLS) sem necessidade de configurar ou instalar o
+Java manualmente. O simulador.jar é obtido automaticamente do repositório da
+disciplina quando ausente.
 
 Exemplos:
   simulador start

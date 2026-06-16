@@ -1,6 +1,8 @@
 # Plano de Correção — Reapontar o CLI `simulador` para o jar correto (`hubsaude-simulador`)
 
-> **Status:** proposto (nenhuma alteração de código feita ainda).
+> **Status:** ✅ implementado (2026-06-16) — correção aplicada ao CLI (`internal/simserver`
+> + `cmd/{root,start,status,stop}`) e suíte do módulo `simulador` verde; validado ponta-a-ponta
+> contra o jar real. As seções abaixo descrevem o plano que foi seguido.
 > **Origem:** o CLI `projetos/simulador` foi implementado contra o contrato do jar **errado**
 > (`hubsaude-validador-api`). O jar correto do Simulador é
 > `hubsaude-simulador-<versão>.jar` (`Start-Class br.gov.go.saude.hubsaude.simulador.SimuladorApplication`).
@@ -8,7 +10,7 @@
 > [`plano-cli-simulador.md`](./plano-cli-simulador.md), que descreve o validador-api.
 
 ---
-plano-correcao-jar-simulador.md
+
 ## 1. Contexto: existem dois jars distintos
 
 | Jar | O que é | Pacote / Start-Class |
@@ -180,6 +182,13 @@ const defaultPort = 8443
   `DiscoveryController` lê `server.base-url`). Recomendado só se houver caso de uso de porta custom.
 
 ### 4.5 `cmd/stop.go` — shutdown gracioso com fallback por PID (recomendado)
+
+> ⚠️ **EM ABERTO (não implementado).** Na correção de 2026-06-16 foi adotada a **"alternativa
+> mínima"** abaixo: o `stop` continua encerrando por `proc.Kill()` no PID. O `POST /shutdown`
+> gracioso **recomendado** nesta seção **ainda não foi feito** — depende de uma decisão (ver
+> US-03 na especificação, que cita o endpoint `/shutdown`). Para retomar: implementar os helpers
+> `RequestShutdown`/`WaitUntilDown` em `simserver` e o fluxo de `stop.go` esboçados aqui, mais os
+> testes do §5/§10.
 
 - **Recomendado:** tentar `POST /shutdown` primeiro (contrato do próprio jar) e, em falha/instância
   não responsiva, cair para `proc.Kill()` no PID registrado. Esboço:

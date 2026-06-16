@@ -21,7 +21,7 @@ var (
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Inicia o Simulador do HubSaúde em background",
-	Long: `Inicia o Simulador do HubSaúde (validador FHIR) como processo em background.
+	Long: `Inicia o Simulador do HubSaúde (servidor de autorização SMART on FHIR / OAuth2 com mTLS) como processo em background.
 
 Verifica se a porta está livre, obtém o simulador.jar (baixando do repositório
 da disciplina quando ausente), garante um Java 21+ disponível e sobe o processo.

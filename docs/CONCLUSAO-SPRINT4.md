@@ -35,11 +35,11 @@ Sprint 4: **funcionalidade concluída.** Pendências restantes são de **dado ex
 |---------|-----------|
 | `internal/config/paths.go` | caminhos `simulador.jar` / `.pid` / `.version` sob `~/.hubsaude` |
 | `internal/simjar/manager.go` | `Find(source)` — download dinâmico com cache por versão, flag `--source`, fallback offline (US-03.4) |
-| `internal/simserver/manager.go` | registro de PID gravado pelo **CLI**, `IsResponding`/`Health` via Actuator, `IsPortFree` |
-| `internal/simserver/wait.go` | `WaitUntilReady` — polling de `/actuator/health/readiness` |
+| `internal/simserver/manager.go` | registro de PID gravado pelo **CLI**, `IsResponding`/`Probe` via HTTPS `GET /api/info` (`InsecureSkipVerify`), `IsPortFree` |
+| `internal/simserver/wait.go` | `WaitUntilReady` — polling de `GET /api/info` (HTTPS) |
 | `cmd/start.go` | `simulador start [--port] [--source]` — checa porta, obtém jar, sobe em background, aguarda readiness (US-03.1) |
 | `cmd/stop.go` | `simulador stop [--port]` — encerra pelo PID registrado (US-03.2) |
-| `cmd/status.go` | `simulador status [--port]` — consulta `/actuator/health`; reconcilia registro órfão (US-03.2) |
+| `cmd/status.go` | `simulador status [--port]` — consulta `GET /api/info`; reconcilia registro órfão (US-03.2) |
 | `cmd/root.go`, `cmd/version.go`, `main.go` | estrutura do CLI espelhando o `assinatura` (US-03.3) |
 
 ### CI/CD (passo 6)
@@ -58,30 +58,33 @@ saiu de "What Is Not Yet Implemented".
 
 ## 3. Decisões de arquitetura
 
-### D1. O "Simulador" é o validador FHIR externo `hubsaude-validador-api`
+### D1. O "Simulador" é o `hubsaude-simulador` externo (SMART on FHIR / OAuth2 com mTLS)
 
-O artefato gerenciado é um serviço **externo** (Spring Boot 4.0.6, baixado pronto), não construído
-neste repositório. O CLI só gerencia seu ciclo de vida; não controla o código Java. O contrato foi
-**verificado** (estática via `javap` e ao vivo) sobre `hubsaude-validador-api-0.1.10-exec.jar`, o
-que **corrigiu** as suposições iniciais do plano (8443/HTTPS, `/api/info`, `/shutdown`).
+O artefato gerenciado é um serviço **externo** (Spring Boot 4, Tomcat 11, Java 21, baixado pronto),
+não construído neste repositório. O CLI só gerencia seu ciclo de vida; não controla o código Java.
+O contrato foi **verificado ao vivo** (2026-06-15) sobre `hubsaude-simulador-0.0.0-SNAPSHOT.jar`:
+HTTPS na porta 8443 com mTLS, readiness/status via `GET /api/info` e `POST /shutdown` gracioso.
 
-### D2. HTTP na porta 8081, sem TLS
+### D2. HTTPS na porta 8443 com mTLS (cliente Go com `InsecureSkipVerify`)
 
-O validador expõe HTTP simples (porta default 8080). O `simulador` usa **8081** por padrão para
-não colidir com o `assinador.jar` (8080), passando `--server.port=N` ao jar. O cliente Go é um
-`http.Client` comum — **sem** `InsecureSkipVerify`, pois não há TLS.
+O `hubsaude-simulador` expõe **HTTPS na porta 8443** (= `server.port`/`server.base-url` do jar),
+com certificado self-signed (keystore PKCS12 embutido) e `client-auth: want`. O `simulador` usa
+**8443** por padrão (difere do `assinador.jar` em 8080), passando `--server.port=N` ao jar. O
+cliente Go usa `tls.Config{InsecureSkipVerify: true}` — é probe local de ciclo de vida, não canal
+de dados sensível; GETs de probe passam sem certificado de cliente.
 
 ### D3. PID gravado pelo CLI; `stop` por `proc.Kill()`
 
 Diferente do assinador (cujo Java grava o PID), o jar externo não escreve
 `~/.hubsaude/simulador.pid` — o **CLI grava** o registro `{pid, port}` logo após `cmd.Start()`.
-Como o validador **não expõe `/shutdown`**, o `stop` encerra pelo PID registrado.
+O jar expõe `POST /shutdown` (graceful), mas o `stop` encerra pelo PID registrado por ser
+independente do estado HTTP do servidor.
 
-### D4. Readiness via Spring Actuator com timeout generoso
+### D4. Readiness via `GET /api/info` (não há Actuator)
 
-A prontidão é verificada em `GET /actuator/health/readiness` (não `/health`). O **cold start é de
-~20s** (carga dos pacotes FHIR embutidos) mais warm-up lazy do HAPI; por isso o `WaitUntilReady`
-usa timeout de **90s**, não os 30s do `assinatura`.
+A prontidão é verificada em `GET /api/info` (200 = no ar); o jar **não tem Spring Actuator**
+(`/actuator/**` responde 500, não 404). O startup é rápido (**~3s**), mas o `WaitUntilReady` usa
+timeout de **60s** para dar folga ao download/preparo do JRE no primeiro start.
 
 ### D5. Download versionado do jar (US-03.4)
 
@@ -108,9 +111,9 @@ por módulo determinísticos no CI, com ou sem o workspace).
 | **Total novo (simulador)** | **20** | **✅** |
 
 Além dos unitários, foi executado um **smoke test ponta-a-ponta real** contra o jar
-`hubsaude-validador-api-0.1.10-exec.jar`: `start` (subiu e atingiu readiness) → `status` (UP) →
-`start` novamente (detectou e reusou a instância) → `stop` (encerrou e limpou o registro) →
-`status` (parado), sem processo órfão.
+`hubsaude-simulador-0.0.0-SNAPSHOT.jar`: `start` (subiu via HTTPS e atingiu readiness em
+`/api/info`) → `status` (em execução, nome+versão) → `start` novamente (detectou e reusou a
+instância) → `stop` (encerrou e limpou o registro) → `status` (parado), sem processo órfão.
 
 ---
 
@@ -119,7 +122,7 @@ Além dos unitários, foi executado um **smoke test ponta-a-ponta real** contra 
 Ambas dependem de informação externa, não de implementação:
 
 1. **Owner/repo do `simulador.jar` no `release.json`.** Hoje aponta para `danilo-sgalvao/runner`
-   com `version 0.0.0` (placeholder). O artefato real é o `hubsaude-validador-api-<versão>-exec.jar`,
+   com `version 0.0.0` (placeholder). O artefato real é o `hubsaude-simulador-<versão>.jar`,
    publicado em um **repositório externo da disciplina/SES**. Basta ajustar `url`/`version` —
    correção de **dados**, sem mudança de código (a struct `Simulador{URL, Version}` e a lógica do
    `simjar` permanecem). Enquanto não confirmado, o download é validável com `--source`.
