@@ -1,4 +1,11 @@
 
+> ⚠️ **CORREÇÃO DE CONTRATO (2026-06-16):** a seção
+> ["Contrato confirmado do jar externo (v0.1.10)"](#contrato-confirmado-do-jar-externo-v0110)
+> descreve o jar **errado** (`hubsaude-validador-api`, validador FHIR, HTTP 8080, Actuator).
+> O jar correto do Simulador é o `hubsaude-simulador` (HTTPS 8443 + mTLS, `/api/info`, `POST /shutdown`,
+> **sem** Actuator). O contrato correto e a correção já aplicada ao CLI estão em
+> [`plano-correcao-jar-simulador.md`](./plano-correcao-jar-simulador.md), que **supersede** aquela seção.
+
 # Plano de Implementação — Sprint 4: CLI `simulador` e Segurança Final
 
 Plano de execução das histórias **US-03.1, US-03.2, US-03.3 e US-03.4** (mais a extensão de
@@ -65,6 +72,10 @@ do Simulador. Isso gera diferenças estruturais em relação ao `assinatura` que
 copiadas cegamente**.
 
 ### Contrato confirmado do jar externo (v0.1.10)
+
+> ⚠️ **OBSOLETO — jar errado.** Esta seção descreve o `hubsaude-validador-api`, não o Simulador.
+> O contrato correto está em [`plano-correcao-jar-simulador.md`](./plano-correcao-jar-simulador.md)
+> e o CLI já foi corrigido. Mantida apenas como registro histórico.
 
 O artefato é o **`hubsaude-validador-api`** — um **validador de recursos FHIR** da SES-GO
 (`br.gov.go.saude.hubsaude.validador.api`), Spring Boot 4.0.6 sobre Tomcat 11, Java 21. Fat-jar

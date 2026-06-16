@@ -138,3 +138,18 @@ Com a Sprint 4, o Sistema Runner está completo conforme a especificação: dois
 multiplataforma (`assinatura` e `simulador`) que executam aplicações Java do HubSaúde sem
 configuração manual de Java, ambos publicados no GitHub Releases com checksums e assinatura
 Cosign. Todos os épicos US-01 a US-05 têm suas histórias entregues.
+
+---
+
+## Adendo (2026-06-16) — Correção do jar/contrato do Simulador
+
+O CLI `simulador` foi originalmente implementado contra o contrato do jar **errado**
+(`hubsaude-validador-api` — validador FHIR, HTTP 8080, Spring Actuator). O artefato correto do
+Simulador é o **`hubsaude-simulador`** (servidor SMART on FHIR / OAuth2 com mTLS): **HTTPS na
+porta 8443** com certificado self-signed, readiness/status via **`GET /api/info`** (não há
+Actuator) e **`POST /shutdown`** gracioso. O ciclo de vida (`start`/`stop`/`status`) foi
+reapontado para esse contrato — detalhes e verificação ao vivo em
+[`planos-implementacoes/plano-correcao-jar-simulador.md`](./planos-implementacoes/plano-correcao-jar-simulador.md).
+A correção é contida em `internal/simserver` + ajustes em `cmd` (porta 8443, cliente TLS com
+`InsecureSkipVerify`, probe `/api/info`); o `stop` segue encerrando por PID. Pendente: fixar
+`release.json` com owner/repo/versão reais do `hubsaude-simulador` quando o release oficial sair.

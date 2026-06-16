@@ -12,7 +12,7 @@ O projeto é composto por:
 
 - **`assinatura`** — CLI multiplataforma (Go) para criação e validação de assinaturas digitais
 - **`assinador.jar`** — Aplicação Java que realiza (de forma simulada) as operações de assinatura
-- **`simulador`** — CLI multiplataforma (Go) para gerenciar o ciclo de vida do Simulador do HubSaúde (validador FHIR), baixado dinamicamente do repositório da disciplina
+- **`simulador`** — CLI multiplataforma (Go) para gerenciar o ciclo de vida do Simulador do HubSaúde (`hubsaude-simulador`, SMART on FHIR / OAuth2 com mTLS), baixado dinamicamente do repositório da disciplina
 
 ---
 
@@ -129,8 +129,8 @@ assinatura stop --help
 
 ## Gerenciar o Simulador do HubSaúde (`simulador`)
 
-O CLI `simulador` inicia, encerra e monitora o **Simulador do HubSaúde** (o validador FHIR
-`hubsaude-validador-api`). O `simulador.jar` é um artefato **externo**: na primeira execução, o
+O CLI `simulador` inicia, encerra e monitora o **Simulador do HubSaúde** — o `hubsaude-simulador`,
+servidor de autorização SMART on FHIR / OAuth2 com mTLS. O `simulador.jar` é um artefato **externo**: na primeira execução, o
 CLI o baixa automaticamente do repositório da disciplina e o guarda em `~/.hubsaude/simulador.jar`
 (não rebaixa se a versão local já for a mais recente). O Java também é provisionado
 automaticamente, como no `assinatura`.
@@ -138,8 +138,9 @@ automaticamente, como no `assinatura`.
 Os exemplos assumem o binário renomeado para `simulador` / `simulador.exe` e no `PATH` (mesma
 observação da seção anterior); caso contrário, use o caminho completo do executável.
 
-> **Porta padrão 8081.** Diferente do `assinador.jar` (8080), o Simulador usa 8081 por padrão,
-> para que ambos possam rodar na mesma máquina. Troque com `--port`.
+> **Porta padrão 8443 (HTTPS).** É a porta/`base-url` do próprio `hubsaude-simulador.jar`, com
+> certificado self-signed. Difere do `assinador.jar` (8080), então ambos podem rodar na mesma
+> máquina. Troque com `--port`.
 
 ### Iniciar o Simulador
 
@@ -156,8 +157,8 @@ simulador start --port 9443
 ```
 
 O processo sobe em background e o PID/porta são registrados em `~/.hubsaude/simulador.pid`. O
-**primeiro start pode levar cerca de um minuto**: o validador carrega os pacotes FHIR embutidos
-antes de aceitar requisições; o CLI aguarda a readiness (`/actuator/health/readiness`) e só então
+simulador fica pronto em **poucos segundos** (o primeiro start pode demorar um pouco mais apenas
+por causa do download/preparo do JRE); o CLI aguarda a readiness em `GET /api/info` e só então
 retorna o controle.
 
 ### Consultar o status
@@ -166,11 +167,11 @@ retorna o controle.
 simulador status
 ```
 ```
-Simulador em execução na porta 8081 (PID 22628) — status: UP
+Simulador em execução na porta 8443 (PID 22628) — HubSaúde Simulador 0.0.0-SNAPSHOT
 ```
 
 Se não houver instância ativa, informa que o Simulador não está em execução (e limpa registros
-órfãos). O status é obtido via `GET /actuator/health`.
+órfãos). O status é obtido via `GET /api/info` (nome e versão do simulador).
 
 ### Encerrar o Simulador
 
@@ -185,7 +186,8 @@ simulador stop --port 9443
 .\simulador.exe stop
 ```
 
-O encerramento é feito pelo PID registrado (o validador não expõe endpoint de shutdown).
+O encerramento é feito pelo PID registrado. (O jar expõe `POST /shutdown` para encerramento
+gracioso, mas o CLI usa o PID por ser independente do estado HTTP do servidor.)
 
 ### Fontes alternativas do jar
 
@@ -479,12 +481,12 @@ runner/
 │   │   │   └── server/                     # manager.go (PID/health), client.go (HTTP), wait.go
 │   │   ├── main.go
 │   │   └── go.mod
-│   ├── simulador/                          # CLI Go (Cobra) — simulador.jar (validador FHIR externo)
+│   ├── simulador/                          # CLI Go (Cobra) — simulador.jar (hubsaude-simulador externo, HTTPS+mTLS)
 │   │   ├── cmd/                            # root, version, start, stop, status
 │   │   ├── internal/
 │   │   │   ├── config/paths.go             # Caminhos simulador.{jar,pid,version}
 │   │   │   ├── simjar/manager.go           # Find(source) — download dinâmico + cache por versão
-│   │   │   └── simserver/                  # manager.go (PID gravado pelo CLI, /actuator/health, IsPortFree), wait.go
+│   │   │   └── simserver/                  # manager.go (PID gravado pelo CLI, probe HTTPS /api/info, IsPortFree), wait.go
 │   │   ├── main.go
 │   │   └── go.mod
 │   ├── shared/                             # Módulo Go reusado pelos dois CLIs
