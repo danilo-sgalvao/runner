@@ -80,11 +80,14 @@ Diferente do assinador (cujo Java grava o PID), o jar externo não escreve
 O jar expõe `POST /shutdown` (graceful), mas o `stop` encerra pelo PID registrado por ser
 independente do estado HTTP do servidor.
 
-### D4. Readiness via `GET /api/info` (não há Actuator)
+### D4. Readiness via `GET /api/info`
 
-A prontidão é verificada em `GET /api/info` (200 = no ar); o jar **não tem Spring Actuator**
-(`/actuator/**` responde 500, não 404). O startup é rápido (**~3s**), mas o `WaitUntilReady` usa
-timeout de **60s** para dar folga ao download/preparo do JRE no primeiro start.
+A prontidão é verificada em `GET /api/info` (200 = no ar) — probe **estável entre versões** do jar.
+No `0.0.0-SNAPSHOT` o jar não tinha Spring Actuator (`/actuator/**` → 500); **a partir do `0.1.11` o
+Actuator passou a existir** (`/actuator/health` → 200 UP, reverificado ao vivo em 2026-06-23), mas o
+CLI segue usando `/api/info`, que basta e não depende do Actuator. O startup é rápido (~3s no
+SNAPSHOT, ~4,6s no `0.1.11`), bem dentro do timeout de **60s** que o `WaitUntilReady` usa para dar
+folga ao download/preparo do JRE no primeiro start.
 
 ### D5. Download versionado do jar (US-03.4)
 
@@ -152,8 +155,9 @@ Cosign. Todos os épicos US-01 a US-05 têm suas histórias entregues.
 O CLI `simulador` foi originalmente implementado contra o contrato do jar **errado**
 (`hubsaude-validador-api` — validador FHIR, HTTP 8080, Spring Actuator). O artefato correto do
 Simulador é o **`hubsaude-simulador`** (servidor SMART on FHIR / OAuth2 com mTLS): **HTTPS na
-porta 8443** com certificado self-signed, readiness/status via **`GET /api/info`** (não há
-Actuator) e **`POST /shutdown`** gracioso. O ciclo de vida (`start`/`stop`/`status`) foi
+porta 8443** com certificado self-signed, readiness/status via **`GET /api/info`** (sem Actuator no
+`0.0.0-SNAPSHOT`; ver D4 — o Actuator passou a existir no `0.1.11`) e **`POST /shutdown`** gracioso.
+O ciclo de vida (`start`/`stop`/`status`) foi
 reapontado para esse contrato — detalhes e verificação ao vivo em
 [`planos-implementacoes/plano-correcao-jar-simulador.md`](./planos-implementacoes/plano-correcao-jar-simulador.md).
 A correção é contida em `internal/simserver` + ajustes em `cmd` (porta 8443, cliente TLS com

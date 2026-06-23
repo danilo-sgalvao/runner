@@ -60,7 +60,7 @@ func TestProcessInfo_RoundTrip(t *testing.T) {
 
 func TestIsResponding(t *testing.T) {
 	// Qualquer round-trip conta como "respondendo" — mesmo um status != 200
-	// (ex.: /actuator/** no jar real responde 500).
+	// (ex.: GET /shutdown no jar real responde 500: método não suportado).
 	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))

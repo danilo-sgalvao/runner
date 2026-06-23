@@ -37,6 +37,9 @@ Subido com `java -jar hubsaude-simulador-0.0.0-SNAPSHOT.jar --server.port=18443`
   certificate authentication`) → **GETs sem certificado de cliente passam**. Confirmado: `/api/info` → 200.
 - **Não há Spring Actuator** (0 entradas no jar; `BOOT-INF/lib` sem `spring-boot-actuator`).
   `GET /actuator/**` retorna **HTTP 500** (capturado pelo `GlobalExceptionHandler`, não 404).
+  > **Atualização 2026-06-23:** isto vale para o `0.0.0-SNAPSHOT` analisado aqui. No `0.1.11` o jar
+  > **passou a incluir o Actuator** (`/actuator/health` → 200 UP). A escolha de sondar `/api/info`
+  > permanece (probe estável entre versões); o CLI não muda.
 - **Startup rápido (~3,2 s)** — não há carga pesada de pacotes FHIR. O timeout de 90 s e o texto
   "~1 min" do `start` atual estão muito superdimensionados.
 - **`POST /shutdown` existe** (`ShutdownController`): retorna 200

@@ -10,8 +10,9 @@
 //   - o serviço é HTTPS com certificado self-signed (keystore p12 embutido) e
 //     client-auth: want — GETs de probe passam sem certificado de cliente, mas o
 //     cliente Go precisa pular a verificação da cadeia (InsecureSkipVerify);
-//   - readiness/status usam GET /api/info (200 = no ar); não há Spring Actuator
-//     (/actuator/** responde 500, não 404);
+//   - readiness/status usam GET /api/info (200 = no ar), probe estável entre versões do jar
+//     (o Spring Actuator não existia no 0.0.0-SNAPSHOT e passou a existir no 0.1.11; o CLI não
+//     depende dele);
 //   - existe POST /shutdown (graceful), mas o comando stop encerra por PID.
 package simserver
 
