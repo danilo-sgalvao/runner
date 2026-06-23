@@ -116,6 +116,70 @@ func TestWaitUntilReady_Timeout(t *testing.T) {
 	}
 }
 
+func TestRequestShutdown_Sucesso(t *testing.T) {
+	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/shutdown" {
+			t.Errorf("esperava POST /shutdown, obteve %s %s", r.Method, r.URL.Path)
+		}
+		fmt.Fprint(w, `{"message":"Shutdown iniciado..."}`)
+	}))
+
+	if err := RequestShutdown(port); err != nil {
+		t.Fatalf("RequestShutdown: %v", err)
+	}
+}
+
+func TestRequestShutdown_StatusNaoOK(t *testing.T) {
+	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+
+	if err := RequestShutdown(port); err == nil {
+		t.Fatal("esperava erro quando /shutdown retorna 500")
+	}
+}
+
+func TestRequestShutdown_SemServidor(t *testing.T) {
+	if err := RequestShutdown(freePort(t)); err == nil {
+		t.Fatal("esperava erro quando nada escuta na porta")
+	}
+}
+
+func TestWaitUntilDown_EncerraRapido(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	orig := dialHost
+	dialHost = "127.0.0.1"
+	t.Cleanup(func() { dialHost = orig })
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatalf("URL do httptest inválida: %v", err)
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		t.Fatalf("porta do httptest inválida: %v", err)
+	}
+
+	srv.Close() // simula o processo encerrando
+
+	if err := WaitUntilDown(port, 5*time.Second); err != nil {
+		t.Fatalf("esperava nil após servidor encerrar, obteve: %v", err)
+	}
+}
+
+func TestWaitUntilDown_Timeout(t *testing.T) {
+	port := serverPort(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	if err := WaitUntilDown(port, 1200*time.Millisecond); err == nil {
+		t.Fatal("esperava timeout quando servidor nunca encerra")
+	}
+}
+
 func TestIsPortFree(t *testing.T) {
 	if !IsPortFree(freePort(t)) {
 		t.Error("esperava IsPortFree=true para porta livre")

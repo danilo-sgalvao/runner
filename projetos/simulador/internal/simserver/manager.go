@@ -13,7 +13,8 @@
 //   - readiness/status usam GET /api/info (200 = no ar), probe estável entre versões do jar
 //     (o Spring Actuator não existia no 0.0.0-SNAPSHOT e passou a existir no 0.1.11; o CLI não
 //     depende dele);
-//   - existe POST /shutdown (graceful), mas o comando stop encerra por PID.
+//   - existe POST /shutdown (graceful); o comando stop tenta /shutdown primeiro e
+//     encerra por PID como fallback.
 package simserver
 
 import (
@@ -126,6 +127,37 @@ func Probe(port int) (*Info, error) {
 		return nil, fmt.Errorf("resposta de /api/info inválida: %w", err)
 	}
 	return &info, nil
+}
+
+// RequestShutdown envia POST /shutdown ao simulador (encerramento gracioso).
+// Retorna nil se o servidor aceitou (HTTP 200).
+func RequestShutdown(port int) error {
+	resp, err := httpClient.Post(baseURL(port, "/shutdown"), "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("POST /shutdown retornou %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// WaitUntilDown aguarda o simulador parar de responder em /api/info,
+// consultando a cada 500ms até o timeout. Retorna nil quando a porta não
+// responde mais (sinal de que o processo encerrou).
+func WaitUntilDown(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	url := baseURL(port, "/api/info")
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		resp, err := httpClient.Get(url)
+		if err != nil {
+			return nil
+		}
+		resp.Body.Close()
+	}
+	return fmt.Errorf("simulador ainda responde após %s", timeout)
 }
 
 // IsPortFree informa se a porta TCP pode ser vinculada (livre para iniciar o

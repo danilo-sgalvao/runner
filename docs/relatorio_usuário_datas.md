@@ -217,3 +217,29 @@ Foram identificados e corrigidos três problemas no CI/CD que comprometiam a dis
 - **`release.yml` — build e publicação do `assinador.jar`**: o workflow não fazia o build Maven nem publicava o `assinador.jar` no GitHub Releases. Porém o `release.json` aponta para `releases/latest/download/assinador.jar`, então o auto-download em qualquer máquina falhava com 404. Adicionados: step `mvn package`, cópia do jar para a raiz, inclusão no `sha256sum`, assinatura com Cosign e publicação junto com os binários Go.
 
 - **`release.yml` — versão injetada nos binários**: os comandos `go build` passaram a usar `-ldflags "-X '.../cmd.Version=${VERSION}'"` para os 6 binários (assinatura e simulador, 3 plataformas cada). A tag `${{ github.ref_name }}` é exposta como variável de ambiente `VERSION` para evitar problemas de escape no shell.
+
+# 23/06/26 -- LUIZ AUGUSTO
+
+Implementação do encerramento gracioso do Simulador via `POST /shutdown` (pendência funcional da Sprint 4).
+
+O comando `simulador stop` encerrava o processo exclusivamente por `proc.Kill()` no PID registrado. O jar `hubsaude-simulador` expõe `POST /shutdown` que faz graceful shutdown do Tomcat (retorna 200 e encerra em ~0,5s), mas essa rota ainda não era usada pelo CLI.
+
+**O que foi feito:**
+
+- **`internal/simserver/manager.go`**: adicionados dois helpers:
+  - `RequestShutdown(port)` — envia `POST /shutdown` ao simulador; retorna `nil` se a resposta for HTTP 200.
+  - `WaitUntilDown(port, timeout)` — sonda `GET /api/info` a cada 500ms até erro de conexão (processo encerrado) ou esgotar o timeout.
+
+- **`cmd/stop.go`**: fluxo atualizado para tentar primeiro o encerramento gracioso e cair para `proc.Kill()` como fallback:
+  1. Tenta `RequestShutdown` via `/shutdown`.
+  2. Se aceito, aguarda `WaitUntilDown` por até 10s.
+  3. Se o processo parou → limpa o PID e reporta "Simulador encerrado via /shutdown".
+  4. Caso contrário (servidor não respondeu ou não parou no prazo) → fallback para `proc.Kill()` pelo PID registrado.
+
+- **`internal/simserver/manager_test.go`**: 5 testes novos cobrindo os dois helpers:
+  - `TestRequestShutdown_Sucesso`, `TestRequestShutdown_StatusNaoOK`, `TestRequestShutdown_SemServidor`
+  - `TestWaitUntilDown_EncerraRapido`, `TestWaitUntilDown_Timeout`
+
+  Todos usam `httptest.NewTLSServer`, consistente com os testes existentes do pacote.
+
+**Resultado:** o `stop` agora respeita o contrato próprio do jar, com fallback robusto para o caso em que o servidor já não responde (PID órfão, timeout de graceful shutdown).

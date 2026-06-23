@@ -73,12 +73,13 @@ com certificado self-signed (keystore PKCS12 embutido) e `client-auth: want`. O 
 cliente Go usa `tls.Config{InsecureSkipVerify: true}` — é probe local de ciclo de vida, não canal
 de dados sensível; GETs de probe passam sem certificado de cliente.
 
-### D3. PID gravado pelo CLI; `stop` por `proc.Kill()`
+### D3. PID gravado pelo CLI; `stop` via `/shutdown` com fallback por `proc.Kill()`
 
 Diferente do assinador (cujo Java grava o PID), o jar externo não escreve
 `~/.hubsaude/simulador.pid` — o **CLI grava** o registro `{pid, port}` logo após `cmd.Start()`.
-O jar expõe `POST /shutdown` (graceful), mas o `stop` encerra pelo PID registrado por ser
-independente do estado HTTP do servidor.
+O `stop` tenta primeiro o encerramento gracioso via `POST /shutdown` (contrato do jar; aguarda
+até 10s o processo parar); se o servidor não responder ou não encerrar no prazo, cai para
+`proc.Kill()` pelo PID registrado — fallback robusto para PID órfão ou timeout do graceful.
 
 ### D4. Readiness via `GET /api/info`
 
@@ -161,5 +162,5 @@ O ciclo de vida (`start`/`stop`/`status`) foi
 reapontado para esse contrato — detalhes e verificação ao vivo em
 [`planos-implementacoes/plano-correcao-jar-simulador.md`](./planos-implementacoes/plano-correcao-jar-simulador.md).
 A correção é contida em `internal/simserver` + ajustes em `cmd` (porta 8443, cliente TLS com
-`InsecureSkipVerify`, probe `/api/info`); o `stop` segue encerrando por PID. Pendente: fixar
+`InsecureSkipVerify`, probe `/api/info`); o `stop` passou a tentar `POST /shutdown` (graceful) com fallback por PID (ver D3). Pendente: fixar
 `release.json` com owner/repo/versão reais do `hubsaude-simulador` quando o release oficial sair.

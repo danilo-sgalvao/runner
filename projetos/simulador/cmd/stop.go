@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/danilo-sgalvao/runner/simulador/internal/simserver"
 	"github.com/spf13/cobra"
@@ -15,9 +16,9 @@ var stopCmd = &cobra.Command{
 	Short: "Encerra o Simulador em execução",
 	Long: `Encerra o Simulador do HubSaúde que está rodando em background.
 
-Lê o PID registrado em ~/.hubsaude/simulador.pid e encerra o processo pelo PID.
-(O jar expõe POST /shutdown para encerramento gracioso, mas o stop usa o PID por
-ser independente do estado HTTP do servidor.)
+Tenta encerramento gracioso via POST /shutdown (contrato do jar); se o servidor
+não responder ou não parar em 10s, encerra forçosamente pelo PID registrado em
+~/.hubsaude/simulador.pid.
 
 Exemplos:
   simulador stop
@@ -32,6 +33,14 @@ Exemplos:
 
 		if stopPort != 0 && info.Port != stopPort {
 			return fmt.Errorf("nenhum simulador registrado na porta %d (registro ativo está na porta %d)", stopPort, info.Port)
+		}
+
+		if err := simserver.RequestShutdown(info.Port); err == nil {
+			if simserver.WaitUntilDown(info.Port, 10*time.Second) == nil {
+				simserver.ClearProcessInfo()
+				fmt.Printf("Simulador encerrado via /shutdown (porta %d, PID %d)\n", info.Port, info.PID)
+				return nil
+			}
 		}
 
 		proc, err := os.FindProcess(info.PID)
