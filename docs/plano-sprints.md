@@ -319,7 +319,7 @@
 - [x] Download automático quando simulador.jar não está disponível localmente
 - [x] Opção `--source <url>` permite indicar URL alternativa para download
 - [x] Versão já baixada não é baixada novamente (cache local em `~/.hubsaude/`)
-- [ ] Verificação de integridade do download (checksum) — pendente: `release.json` ainda não expõe hash do simulador.jar
+- [x] Verificação de integridade do download (checksum) — `release.json` expõe `simulador.sha256` e `simjar.download` confere o hash do jar baixado antes de instalá-lo (aborta se não conferir)
 
 - [x] Checksum SHA-256 e Sigstore Cosign incorporados no fluxo (US-05.3)
 

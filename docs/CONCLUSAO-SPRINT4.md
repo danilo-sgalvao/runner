@@ -11,11 +11,11 @@ de arquitetura registradas. Detalhes de execução em
 | US-03.1 — Iniciar o Simulador via CLI | 4/4 | — |
 | US-03.2 — Parar e monitorar (`stop`/`status`) | 4/4 | — |
 | US-03.3 — Estrutura base do CLI `simulador` + CI/CD | 4/4 | — |
-| US-03.4 — Obter `simulador.jar` dinamicamente | 4/5 | verificação de checksum do download (ver §5) |
+| US-03.4 — Obter `simulador.jar` dinamicamente | 5/5 | — |
 | US-05.3 — Checksums + Cosign nos binários do `simulador` | 4/4 | — |
 
-Sprint 4: **funcionalidade concluída.** Pendências restantes são de **dado externo** e
-**fonte de integridade**, não de código (ver §5).
+Sprint 4: **funcionalidade concluída.** A pendência restante é de **publicação** (commitar o
+`release.json` ajustado em `main`), não de código (ver §5).
 
 ---
 
@@ -119,19 +119,22 @@ instância) → `stop` (encerrou e limpou o registro) → `status` (parado), sem
 
 ## 5. Pendências restantes
 
-Ambas dependem de informação externa, não de implementação:
+Ambas as pendências de dado/integridade foram **resolvidas em 2026-06-23**; resta apenas publicar.
 
-1. **Owner/repo do `simulador.jar` no `release.json`.** Hoje aponta para `danilo-sgalvao/runner`
-   com `version 0.0.0` (placeholder). O artefato real é o `hubsaude-simulador-<versão>.jar`,
-   publicado em um **repositório externo da disciplina/SES**. Basta ajustar `url`/`version` —
-   correção de **dados**, sem mudança de código (a struct `Simulador{URL, Version}` e a lógica do
-   `simjar` permanecem). Enquanto não confirmado, o download é validável com `--source`.
+1. **Owner/repo do `simulador.jar` no `release.json` — RESOLVIDO.** O artefato real é publicado em
+   **`kyriosdata/runner`** (releases por artefato, tag `hubsaude-simulador-v<versão>`). O
+   `release.json` foi reapontado para a versão mais recente — `hubsaude-simulador-v0.1.11`, URL
+   fixada por tag (estratégia Opção A, alinhada ao cache por versão do `simjar`), `version 0.1.11`.
 
-2. **Verificação de checksum do download (US-03.4).** O `simjar` baixa o jar de forma atômica
-   (arquivo temporário + rename), mas **não valida checksum**, porque o `release.json` ainda não
-   expõe um hash para o `simulador.jar`. Quando a fonte externa publicar um checksum (ou ao
-   adicioná-lo ao `release.json`), basta estender `release.File.Simulador` com o campo e comparar
-   após o download — o ponto de extensão já está isolado em `simjar.download`.
+2. **Verificação de checksum do download (US-03.4) — RESOLVIDO.** O release publica `checksums.txt`;
+   o hash do `0.1.11` foi adicionado como `simulador.sha256` no `release.json` e o `simjar.download`
+   passou a calcular o SHA-256 durante a cópia e abortar a instalação se não conferir (campo vazio
+   desativa a verificação, p.ex. em `--source`). Coberto por `TestFind_ChecksumValido` e
+   `TestFind_ChecksumInvalido`.
+
+**Pendência operacional restante:** o runtime lê o `release.json` de
+`raw.githubusercontent.com/danilo-sgalvao/runner/main` (`shared/config/paths.go`), então o ajuste
+acima só vale ao vivo após **commit/push em `danilo-sgalvao/runner@main`**.
 
 ---
 

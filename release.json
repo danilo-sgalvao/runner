@@ -9,8 +9,8 @@
     "url": "https://github.com/danilo-sgalvao/runner/releases/latest/download/assinador.jar"
   },
   "simulador": {
-    "version": "0.0.0",
-    "url": "https://github.com/danilo-sgalvao/runner/releases/latest/download/simulador.jar",
-    "sha256": ""
+    "version": "0.1.11",
+    "url": "https://github.com/kyriosdata/runner/releases/download/hubsaude-simulador-v0.1.11/hubsaude-simulador-0.1.11.jar",
+    "sha256": "feab87e2c98a1f4453557427d85515ab7c0b4d6a358a167e731bd036781dd96b"
   }
 }
